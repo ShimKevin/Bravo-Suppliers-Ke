@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Checkout</h1>
+    
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Delivery Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('place_order') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="firstName" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="firstName" name="first_name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="lastName" name="last_name" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Delivery Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="3" required></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Delivery Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="card mt-4">
+                            <div class="card-header bg-light">
+                                <h5 class="mb-0">Payment Method</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_method" id="mpesa" value="mpesa" checked>
+                                    <label class="form-check-label" for="mpesa">
+                                        <i class="fas fa-mobile-alt me-2"></i> M-Pesa on Delivery
+                                    </label>
+                                </div>
+                                <div class="payment-card p-3 rounded mt-3">
+                                    <h6 class="mb-2">Pay with M-Pesa when your order arrives</h6>
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <span>Paybill Number:</span>
+                                        <span class="fw-bold">899790</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Account Number:</span>
+                                        <span class="fw-bold">516335</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success w-100 mt-4 py-3 fs-5">
+                            <i class="fas fa-check-circle me-2"></i> Place Order
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart_items %}
+                                {% set discounted_price = item.product.price * (1 - item.product.discount/100) %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td>KSh {{ (discounted_price * item.quantity) | round(2) }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr>
+                                    <td colspan="2" class="fw-bold">Delivery Fee</td>
+                                    <td class="fw-bold">KSh 300.00</td>
+                                </tr>
+                                {% if discounts > 0 %}
+                                <tr>
+                                    <td colspan="2" class="fw-bold text-success">Discounts</td>
+                                    <td class="fw-bold text-success">-KSh {{ discounts | round(2) }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr class="fw-bold fs-5">
+                                    <td colspan="2">Total</td>
+                                    <td>KSh {{ total | round(2) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Delivery Information</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <i class="fas fa-truck me-2"></i> Free delivery within Nairobi CBD
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-clock me-2"></i> 1-2 business days delivery Countrywide
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-phone me-2"></i> Call us for urgent 0796 516 335 deliveries
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

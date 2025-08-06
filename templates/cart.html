@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">Your Shopping Cart</h1>
+    
+    {% if cart_items %}
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table cart-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Quantity</th>
+                                    <th>Subtotal</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in cart_items %}
+                                {% set discounted_price = item.product.price * (1 - item.product.discount/100) %}
+                                <tr class="cart-item" id="cart-item-{{ item.id }}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if item.product.image %}{{ url_for('static', filename='uploads/' + item.product.image) }}{% else %}https://via.placeholder.com/80x80?text=No+Image{% endif %}" 
+                                                 class="img-thumbnail me-3" width="80" alt="{{ item.product.name }}">
+                                            <div>
+                                                <h5 class="mb-0">{{ item.product.name }}</h5>
+                                                <p class="mb-0 text-muted">{{ item.product.category.name }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if item.product.discount > 0 %}
+                                            <div class="text-danger fw-bold">KSh {{ discounted_price | round(2) }}</div>
+                                            <div class="text-muted text-decoration-line-through small">KSh {{ item.product.price }}</div>
+                                        {% else %}
+                                            <div class="fw-bold">KSh {{ item.product.price }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="quantity-controls d-flex align-items-center">
+                                            <button class="btn btn-sm btn-outline-secondary cart-quantity-btn minus" 
+                                                    data-item-id="{{ item.id }}">-</button>
+                                            <input type="number" class="form-control form-control-sm cart-quantity" 
+                                                   value="{{ item.quantity }}" min="1" 
+                                                   data-item-id="{{ item.id }}"
+                                                   style="width: 60px; margin: 0 5px;">
+                                            <button class="btn btn-sm btn-outline-secondary cart-quantity-btn plus" 
+                                                    data-item-id="{{ item.id }}">+</button>
+                                        </div>
+                                    </td>
+                                    <td class="fw-bold item-subtotal">KSh {{ (discounted_price * item.quantity) | round(2) }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger remove-item" 
+                                                data-item-id="{{ item.id }}">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('home') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-left me-1"></i> Continue Shopping
+                        </a>
+                        <a href="{{ url_for('clear_cart') }}" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-1"></i> Clear Cart
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Cart Summary</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Subtotal:</span>
+                            <span class="fw-bold cart-subtotal">KSh {{ subtotal | round(2) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Delivery:</span>
+                            <span class="fw-bold cart-delivery">KSh 300.00</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between">
+                            <span>Discounts:</span>
+                            <span class="fw-bold text-success cart-discounts">-KSh {{ discounts | round(2) }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between fs-5">
+                            <span>Total:</span>
+                            <span class="fw-bold cart-total">KSh {{ total | round(2) }}</span>
+                        </li>
+                    </ul>
+                    
+                    <a href="{{ url_for('checkout') }}" class="btn btn-success w-100 mt-3">
+                        <i class="fas fa-check-circle me-1"></i> Proceed to Checkout
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Payment on Delivery</h5>
+                    <p class="card-text">Pay with M-Pesa when your order arrives</p>
+                    <div class="payment-card p-3 rounded">
+                        <h6 class="mb-2">M-Pesa Paybill:</h6>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Paybill Number:</span>
+                            <span class="fw-bold">899790</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>Account Number:</span>
+                            <span class="fw-bold">516335</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="card text-center py-5">
+        <div class="card-body">
+            <i class="fas fa-shopping-cart fa-4x text-muted mb-4"></i>
+            <h3 class="card-title">Your cart is empty</h3>
+            <p class="card-text">Looks like you haven't added any items to your cart yet</p>
+            <a href="{{ url_for('home') }}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-1"></i> Continue Shopping
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Quantity controls
+        document.querySelectorAll('.cart-quantity-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-item-id');
+                const input = document.querySelector(`.cart-quantity[data-item-id="${itemId}"]`);
+                let quantity = parseInt(input.value);
+                
+                if (this.classList.contains('plus')) {
+                    quantity++;
+                } else if (this.classList.contains('minus') && quantity > 1) {
+                    quantity--;
+                }
+                
+                input.value = quantity;
+                updateCartItem(itemId, quantity);
+            });
+        });
+        
+        // Input field changes
+        document.querySelectorAll('.cart-quantity').forEach(input => {
+            input.addEventListener('change', function() {
+                const itemId = this.getAttribute('data-item-id');
+                let quantity = parseInt(this.value);
+                
+                if (quantity < 1) quantity = 1;
+                this.value = quantity;
+                
+                updateCartItem(itemId, quantity);
+            });
+        });
+        
+        // Remove item buttons
+        document.querySelectorAll('.remove-item').forEach(button => {
+            button.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-item-id');
+                updateCartItem(itemId, 0);
+            });
+        });
+        
+        // Function to update cart item via AJAX
+        function updateCartItem(itemId, quantity) {
+            fetch(`/update-cart/${itemId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `quantity=${quantity}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update cart summary
+                    document.querySelector('.cart-subtotal').textContent = `KSh ${data.subtotal.toFixed(2)}`;
+                    document.querySelector('.cart-discounts').textContent = `-KSh ${data.discounts.toFixed(2)}`;
+                    document.querySelector('.cart-total').textContent = `KSh ${data.total.toFixed(2)}`;
+                    
+                    // If item was removed
+                    if (data.removed) {
+                        const itemRow = document.getElementById(`cart-item-${itemId}`);
+                        if (itemRow) {
+                            itemRow.remove();
+                            
+                            // If cart is now empty, reload page
+                            if (document.querySelectorAll('.cart-item').length === 0) {
+                                location.reload();
+                            }
+                        }
+                    } else {
+                        // Update item subtotal
+                        const itemRow = document.getElementById(`cart-item-${itemId}`);
+                        if (itemRow) {
+                            const price = parseFloat(itemRow.querySelector('td:nth-child(2) .fw-bold').textContent.replace('KSh ', ''));
+                            const subtotalCell = itemRow.querySelector('.item-subtotal');
+                            subtotalCell.textContent = `KSh ${(price * quantity).toFixed(2)}`;
+                        }
+                    }
+                    
+                    // Update cart count in navbar
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_count;
+                    }
+                    
+                    // Show success message
+                    flashMessage('Cart updated successfully!', 'success');
+                } else {
+                    flashMessage(data.message || 'Error updating cart', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                flashMessage('Error updating cart', 'danger');
+            });
+        }
+        
+        // Function to show flash messages
+        function flashMessage(message, category) {
+            // Remove existing alerts
+            document.querySelectorAll('.alert-dismissible').forEach(alert => {
+                alert.remove();
+            });
+            
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${category} alert-dismissible fade show`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Insert at top of container
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto dismiss after 3 seconds
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alertDiv);
+                bsAlert.close();
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %}

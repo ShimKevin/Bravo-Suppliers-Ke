@@ -1,0 +1,132 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Manage Hot Sales</h2>
+
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div class="row">
+          {% for i in range(8) %}
+          <div class="col-md-3 mb-4">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Position {{ i+1 }}</h5>
+
+                <div class="mb-3">
+                  <label class="form-label">Select Product</label>
+                  <select name="product_ids[]" class="form-select" required>
+                    <option value="">-- Select Product --</option>
+                    {% for product in all_products %}
+                    <option value="{{ product.id }}"
+                      {% if hot_sales|length > i and hot_sales[i].product_id == product.id %}selected{% endif %}>
+                      {{ product.name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">Current Image</label>
+                  {% if hot_sales|length > i and hot_sales[i] and hot_sales[i].display_image %}
+                  <div class="mb-2 current-image" data-index="{{ i }}">
+                    <img src="{{ hot_sales[i].display_image }}" class="img-thumbnail" style="max-height: 150px;">
+                    {% if hot_sales[i].image %}
+                    <button type="button" class="btn btn-sm btn-danger mt-2 remove-image" data-index="{{ i }}">
+                      <i class="fas fa-trash me-1"></i> Remove Custom Image
+                    </button>
+                    {% endif %}
+                  </div>
+                  {% else %}
+                  <p class="text-muted mb-2">No image set</p>
+                  {% endif %}
+
+                  <label class="form-label">Upload New Image</label>
+                  <input type="file" class="form-control image-upload" name="image_{{ i }}" accept="image/*"
+                    data-index="{{ i }}">
+
+                  <div class="mt-2 d-none preview-container" data-index="{{ i }}">
+                    <img src="" class="img-thumbnail preview-image" style="max-height: 150px;">
+                    <div class="mt-2">
+                      <button type="button" class="btn btn-sm btn-danger cancel-upload" data-index="{{ i }}">
+                        <i class="fas fa-times me-1"></i> Cancel Upload
+                      </button>
+                    </div>
+                  </div>
+
+                  <input type="hidden" name="delete_image_{{ i }}" class="delete-flag" data-index="{{ i }}" value="0">
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Save Hot Sales</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.image-upload').forEach(input => {
+      input.addEventListener('change', function () {
+        const index = this.dataset.index;
+        const file = this.files[0];
+        const previewContainer = document.querySelector(`.preview-container[data-index='${index}']`);
+        const previewImage = previewContainer.querySelector('.preview-image');
+        const currentImage = document.querySelector(`.current-image[data-index='${index}']`);
+        const deleteFlag = document.querySelector(`.delete-flag[data-index='${index}']`);
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            previewImage.src = e.target.result;
+            previewContainer.classList.remove('d-none');
+            if (currentImage) currentImage.style.display = 'none';
+            if (deleteFlag) deleteFlag.value = '0';
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    });
+
+    document.querySelectorAll('.cancel-upload').forEach(button => {
+      button.addEventListener('click', function () {
+        const index = this.dataset.index;
+        const previewContainer = document.querySelector(`.preview-container[data-index='${index}']`);
+        const previewImage = previewContainer.querySelector('.preview-image');
+        const imageInput = document.querySelector(`.image-upload[data-index='${index}']`);
+        const currentImage = document.querySelector(`.current-image[data-index='${index}']`);
+
+        previewImage.src = '';
+        if (imageInput) imageInput.value = '';
+        if (previewContainer) previewContainer.classList.add('d-none');
+        if (currentImage) currentImage.style.display = 'block';
+      });
+    });
+
+    document.querySelectorAll('.remove-image').forEach(button => {
+      button.addEventListener('click', function () {
+        const index = this.dataset.index;
+        if (confirm('Are you sure you want to remove this custom image?')) {
+          const currentImage = document.querySelector(`.current-image[data-index='${index}']`);
+          const imageInput = document.querySelector(`.image-upload[data-index='${index}']`);
+          const deleteFlag = document.querySelector(`.delete-flag[data-index='${index}']`);
+
+          if (currentImage) currentImage.style.display = 'none';
+          if (imageInput) imageInput.value = '';
+          if (deleteFlag) deleteFlag.value = '1';
+
+          const message = document.createElement('p');
+          message.className = 'text-success mt-2';
+          message.innerHTML = '<i class="fas fa-check-circle me-1"></i> Custom image will be removed';
+          currentImage?.parentNode?.appendChild(message);
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

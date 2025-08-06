@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <!-- Fixed: Changed 'index' to 'home' -->
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Search Results</li>
+        </ol>
+    </nav>
+    
+    <h2 class="section-title mb-4">Search Results for "{{ query }}"</h2>
+    
+    <!-- Results count and sorting options -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <p class="mb-0">
+            Found <strong>{{ products|length }}</strong> product{{ 's' if products|length != 1 }}
+        </p>
+        <div class="sort-options">
+            <select class="form-select form-select-sm" id="sort-select">
+                <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Sort by: Relevance</option>
+                <option value="price_low_high" {% if sort_by == 'price_low_high' %}selected{% endif %}>Price: Low to High</option>
+                <option value="price_high_low" {% if sort_by == 'price_high_low' %}selected{% endif %}>Price: High to Low</option>
+                <option value="name_asc" {% if sort_by == 'name_asc' %}selected{% endif %}>Name: A to Z</option>
+                <option value="name_desc" {% if sort_by == 'name_desc' %}selected{% endif %}>Name: Z to A</option>
+            </select>
+        </div>
+    </div>
+    
+    {% if products %}
+        <div class="product-row">
+            {% for product in products %}
+            <div class="product-card">
+                {% if product.discount > 0 %}
+                    <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ product.discount }}%</span>
+                {% endif %}
+                <a href="{{ url_for('product_detail', product_id=product.id) }}">
+                    <img src="{% if product.image %}{{ url_for('static', filename='uploads/' + product.image) }}{% else %}https://via.placeholder.com/300x300?text=No+Image{% endif %}" 
+                         class="card-img-top" alt="{{ product.name }}">
+                </a>
+                <div class="card-body">
+                    <a href="{{ url_for('product_detail', product_id=product.id) }}">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                    </a>
+                    <div class="product-price mb-2">
+                        {% if product.discount > 0 %}
+                            <span class="text-danger fw-bold">KSh {{ (product.price * (1 - product.discount/100)) | round(2) }}</span>
+                            <span class="text-muted text-decoration-line-through">KSh {{ product.price }}</span>
+                        {% else %}
+                            <span class="fw-bold">KSh {{ product.price }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <button class="btn btn-sm btn-outline-primary add-to-cart" 
+                                data-product-id="{{ product.id }}">
+                            <i class="fas fa-shopping-cart me-1"></i> Add
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary add-to-wishlist" 
+                                data-product-id="{{ product.id }}">
+                            <i class="fas fa-heart"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-search me-3 fs-4"></i>
+                <div>
+                    <h5>No products found</h5>
+                    <p class="mb-0">We couldn't find any products matching "{{ query }}"</p>
+                    <p class="mb-0 mt-2">
+                        <a href="{{ url_for('home') }}" class="btn btn-primary btn-sm">Browse All Products</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // JavaScript to handle sorting selection
+    document.getElementById('sort-select').addEventListener('change', function() {
+        const sortValue = this.value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sortValue);
+        window.location.href = url.toString();
+    });
+</script>
+{% endblock %}

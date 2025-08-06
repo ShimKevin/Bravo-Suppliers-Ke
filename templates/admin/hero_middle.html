@@ -1,0 +1,110 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Manage Hero Middle Section</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="title" class="form-label">Title</label>
+                    <input type="text" class="form-control" id="title" name="title" 
+                           value="{{ hero_middle.title if hero_middle.title else '' }}" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3" 
+                              required>{{ hero_middle.description if hero_middle.description else '' }}</textarea>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="discount_percentage" class="form-label">Discount Percentage</label>
+                    <input type="number" class="form-control" id="discount_percentage" name="discount_percentage" 
+                           value="{{ hero_middle.discount_percentage if hero_middle.discount_percentage else '0' }}" 
+                           min="0" max="100">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="image" class="form-label">Image</label>
+                    <input class="form-control" type="file" id="image" name="image" 
+                           accept="image/png, image/jpeg, image/jpg" 
+                           onchange="previewImage(this, 'image-preview')">
+                    
+                    {% if hero_middle and hero_middle.image %}
+                        <div class="mt-2" id="image-preview-container">
+                            <img src="{{ get_image_url(hero_middle.image) }}" 
+                                 id="image-preview" 
+                                 alt="Current Image" class="img-thumbnail" width="200">
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        onclick="deleteImage()">
+                                    <i class="fas fa-trash me-1"></i> Delete Image
+                                </button>
+                                <input type="hidden" name="delete_image" id="delete-image-flag" value="0">
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="mt-2 d-none" id="image-preview-container">
+                            <img src="" id="image-preview" class="img-thumbnail" width="200">
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-danger" 
+                                        onclick="deleteImage()">
+                                    <i class="fas fa-trash me-1"></i> Delete Image
+                                </button>
+                                <input type="hidden" name="delete_image" id="delete-image-flag" value="0">
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="submit" name="delete" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> Delete Entire Section
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const container = document.getElementById('image-preview-container');
+    const deleteFlag = document.getElementById('delete-image-flag');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            container.classList.remove('d-none');
+            // Reset delete flag if new image is uploaded
+            deleteFlag.value = '0';
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function deleteImage() {
+    const container = document.getElementById('image-preview-container');
+    const preview = document.getElementById('image-preview');
+    const input = document.getElementById('image');
+    const deleteFlag = document.getElementById('delete-image-flag');
+    
+    // Clear preview and input
+    preview.src = '';
+    input.value = '';
+    
+    // Set delete flag
+    deleteFlag.value = '1';
+    
+    // Hide preview container
+    container.classList.add('d-none');
+}
+</script>
+{% endblock %}

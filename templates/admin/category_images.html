@@ -1,0 +1,71 @@
+{% extends "admin/admin_base.html" %}
+
+{% block admin_content %}
+<div class="container py-4">
+    <h1 class="mb-4">Category Hero Images</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        Upload up to 8 images per category. To remove an image, use the delete button below each image.
+    </div>
+
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-md-6 mb-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">{{ category.name }}</h5>
+
+                    <!-- Upload Form for Multiple Images -->
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="category_id" value="{{ category.id }}">
+                        <div class="mb-3">
+                            <label class="form-label">Upload Images (Max 8)</label>
+                            <input class="form-control" type="file" name="images" accept="image/*" multiple>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i> Upload Images
+                        </button>
+                    </form>
+
+                    <!-- Image Gallery -->
+                    {% if category.images %}
+                    <div class="row mt-4">
+                        {% for image in category.images %}
+                        <div class="col-6 col-md-4 mb-3">
+                            <div class="card">
+                                <img src="{{ get_image_url(image.filename) }}" class="card-img-top" alt="Category Image">
+                                <div class="card-body p-2">
+                                    <form method="POST" action="{{ url_for('delete_category_image', image_id=image.id) }}">
+                                        <button type="submit" class="btn btn-danger btn-sm w-100">
+                                            <i class="fas fa-trash me-1"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="bg-light p-4 mt-3 text-center text-muted">
+                        No images uploaded for this category yet.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

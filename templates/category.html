@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Breadcrumbs -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ category.name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-lg-3 d-none d-lg-block">
+            <!-- Category Filters -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort">
+                            <option>Default</option>
+                            <option>Price: Low to High</option>
+                            <option>Price: High to Low</option>
+                            <option>Newest First</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Subcategories</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="subcat1">
+                            <label class="form-check-label" for="subcat1">All</label>
+                        </div>
+                        {% for subcat in subcategories %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="subcat{{ subcat.id }}">
+                            <label class="form-check-label" for="subcat{{ subcat.id }}">{{ subcat.name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Category Navigation -->
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Categories</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for cat in top_categories %}
+                    <li class="list-group-item">
+                        <a href="{{ url_for('category', category_id=cat.id) }}">{{ cat.name }}</a>
+                        {% if cat.children %}
+                        <ul class="list-unstyled ms-3 mt-2">
+                            {% for child in cat.children %}
+                            <li><a href="{{ url_for('category', category_id=child.id) }}">{{ child.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="col-lg-9 col-12">
+            <h2 class="section-title mb-4">{{ category.name }}</h2>
+            
+            {% if subcategories %}
+            <div class="row mb-4">
+                {% for subcat in subcategories %}
+                <div class="col-md-3 col-6 mb-3">
+                    <div class="card category-card h-100">
+                        <div class="card-body text-center">
+                            <div class="icon-placeholder mb-3">
+                                <i class="fas fa-box fa-2x"></i>
+                            </div>
+                            <h5 class="card-title">{{ subcat.name }}</h5>
+                            <a href="{{ url_for('category', category_id=subcat.id) }}" class="btn btn-sm btn-outline-primary">View Products</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="row">
+                {% for product in products %}
+                <div class="col-lg-4 col-md-6 col-6 mb-4">
+                    <div class="card product-card h-100">
+                        {% if product.discount > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ product.discount }}%</span>
+                        {% endif %}
+                        <img src="{% if product.image %}{{ url_for('static', filename='uploads/' + product.image) }}{% else %}https://via.placeholder.com/300x300?text=No+Image{% endif %}" 
+                             class="card-img-top" alt="{{ product.name }}">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ product.name }}</h5>
+                            <div class="product-price mb-2">
+                                {% if product.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (product.price * (1 - product.discount/100)) | round(2) }}</span>
+                                    <span class="text-muted text-decoration-line-through">KSh {{ product.price }}</span>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ product.price }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('add_to_cart', product_id=product.id) }}" class="btn btn-primary">
+                                    <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                </a>
+                                <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-secondary">View Details</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        No products found in this category.
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Pagination -->
+            <nav aria-label="Product pagination">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                    </li>
+                    <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                    <li class="page-item"><a class="page-link" href="#">2</a></li>
+                    <li class="page-item"><a class="page-link" href="#">3</a></li>
+                    <li class="page-item">
+                        <a class="page-link" href="#">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Hero Section - Combined in one card -->
+    <section class="hero-section card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <!-- Left: Categories -->
+                <div class="col-md-3">
+                    <div class="hero-left">
+                        <h5 class="mb-3">All Categories</h5>
+                        <ul class="categories-list small-font">
+                            {% for category in top_categories %}
+                                <li class="category-item">
+                                    <div class="category-header d-flex justify-content-between align-items-center">
+                                        <a href="{{ url_for('category', category_id=category.id) }}" 
+                                           class="category-link">{{ category.name }}</a>
+                                        {% if category.children %}
+                                            <button class="btn btn-sm btn-link toggle-subcategories" 
+                                                    data-category-id="{{ category.id }}">
+                                                <i class="fas fa-chevron-down"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                    {% if category.children %}
+                                        <ul class="subcategories-list ms-3" id="subcategories-{{ category.id }}" style="display: none;">
+                                            {% for subcategory in category.children %}
+                                                <li>
+                                                    <a href="{{ url_for('category', category_id=subcategory.id) }}">
+                                                        {{ subcategory.name }}
+                                                    </a>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Middle: Trending Product (Updated with slogan) -->
+                <div class="col-md-6">
+                    <div class="hero-middle">
+                        {% if hero_middle and hero_middle.image %}
+                        <div class="trending-container position-relative">
+                            <div class="today-deal">
+                                Today's Deal
+                                {% if hero_middle.discount_percentage > 0 %}
+                                    <span class="badge bg-danger ms-2">Save {{ hero_middle.discount_percentage }}%</span>
+                                {% endif %}
+                            </div>
+                            <img src="{{ get_image_url(hero_middle.image) }}" 
+                                 class="dance-animation" 
+                                 alt="{{ hero_middle.title }}"
+                                 style="max-height: 180px;">
+                            <h3>{{ hero_middle.title }}</h3>
+                            <p>{{ hero_middle.description }}</p>
+                            <button class="shop-now-btn">Shop Now</button>
+                            
+                            <!-- Slogan positioned in lower right corner -->
+                            <div class="hero-slogan position-absolute bottom-0 end-0 p-2 text-end">
+                                Quality Products. Unbeatable Prices. While Stocks Last!
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="text-center p-5 bg-light">
+                            <p>No trending product set</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Right: Banner -->
+                <div class="col-md-3">
+                    <div class="hero-right">
+                        <!-- Banner -->
+                        <div class="hero-banner">
+                            {% if hero_banner and hero_banner.image %}
+                            <img src="{{ get_image_url(hero_banner.image) }}" 
+                                 alt="Advertisement Banner">
+                            {% else %}
+                            <div class="d-flex align-items-center justify-content-center h-100">
+                                <p class="text-muted">No banner image set</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Hot Sales Section -->
+    <section class="hot-sales mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="section-title">Hot Sales</h2>
+            <a href="#" class="btn btn-outline-primary">View All</a>
+        </div>
+        
+        <div class="row">
+            {% for hot_sale in hot_sales %}
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="card product-card h-100">
+                    {% if hot_sale.product.discount > 0 %}
+                        <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
+                    {% endif %}
+                    <img src="{{ hot_sale.display_image }}" 
+                         class="card-img-top" 
+                         alt="{{ hot_sale.product.name }}"
+                         style="height: 180px; object-fit: contain;">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ hot_sale.product.name }}</h5>
+                        <div class="product-price mb-2">
+                            {% if hot_sale.product.discount > 0 %}
+                                <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
+                                <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
+                            {% else %}
+                                <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" class="btn btn-primary">
+                                <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                            </a>
+                            <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-outline-secondary">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">No hot sales products available</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Category Sections -->
+    {% for category in category_products %}
+        <section class="category-section mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="section-title">
+                    <a href="{{ url_for('category', category_id=category.id) }}" class="text-decoration-none">
+                        {{ category.name }}
+                    </a>
+                </h2>
+                <a href="{{ url_for('category', category_id=category.id) }}" class="btn btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            
+            <!-- Products Grid -->
+            <div class="row">
+                {% for product in category.products %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                        <div class="card product-card h-100">
+                            {% if product.discount > 0 %}
+                                <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ product.discount }}%</span>
+                            {% endif %}
+                            <img src="{{ get_image_url(product.image) or 'https://via.placeholder.com/300x300?text=No+Image' }}" 
+                                 class="card-img-top" 
+                                 alt="{{ product.name }}"
+                                 style="height: 180px; object-fit: contain;">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ product.name }}</h5>
+                                <div class="product-price mb-2">
+                                    {% if product.discount > 0 %}
+                                        <span class="text-danger fw-bold">KSh {{ (product.price * (1 - product.discount/100)) | round(2) }}</span>
+                                        <span class="text-muted text-decoration-line-through">KSh {{ product.price }}</span>
+                                    {% else %}
+                                        <span class="fw-bold">KSh {{ product.price }}</span>
+                                    {% endif %}
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <a href="{{ url_for('add_to_cart', product_id=product.id) }}" class="btn btn-primary">
+                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                    </a>
+                                    <a href="{{ url_for('product_detail', product_id=product.id) }}" class="btn btn-outline-secondary">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="col-12">
+                        <div class="alert alert-info">No products found in this category</div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    {% endfor %}
+</div>
+
+<script>
+    // Toggle subcategories
+    document.querySelectorAll('.toggle-subcategories').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const categoryId = this.getAttribute('data-category-id');
+            const subList = document.getElementById(`subcategories-${categoryId}`);
+            const icon = this.querySelector('i');
+            
+            if (subList.style.display === 'none' || subList.style.display === '') {
+                subList.style.display = 'block';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            } else {
+                subList.style.display = 'none';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            }
+        });
+    });
+</script>
+{% endblock %}

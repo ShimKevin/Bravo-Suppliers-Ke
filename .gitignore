@@ -1,0 +1,65 @@
+# -----------------------
+# Python + Flask + PostgreSQL
+# -----------------------
+
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+ENV/
+env/
+
+# Flask instance or local DB (if used temporarily)
+instance/
+*.sqlite3
+*.db
+
+# PostgreSQL dumps (optional)
+*.sql
+*.dump
+
+# Environment variables
+.env
+.env.*
+
+# Uploaded images / media
+/static/uploads/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.gif
+
+# Editor and system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Build / egg / cache
+*.egg-info/
+*.egg
+dist/
+build/
+.cache/
+
+# Testing & coverage
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+
+# Docker (optional)
+.dockerignore
+*.dockerfile
+
+# Node modules (optional frontend)
+node_modules/
+

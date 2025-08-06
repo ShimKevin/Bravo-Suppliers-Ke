@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <!-- Product Image -->
+        <div class="col-md-6 mb-4">
+            {% if product.image %}
+                <img src="{{ get_image_url(product.image) }}" 
+                     alt="{{ product.name }}" class="img-fluid rounded shadow">
+            {% else %}
+                <div class="bg-light d-flex align-items-center justify-content-center rounded shadow" style="height: 400px;">
+                    <h5 class="text-muted">No Image Available</h5>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Product Details -->
+        <div class="col-md-6 mb-4">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('home') }}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('category', category_id=product.category.id) }}">{{ product.category.name }}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+                </ol>
+            </nav>
+            
+            <h1 class="mb-3">{{ product.name }}</h1>
+            
+            <div class="d-flex align-items-center mb-3">
+                {% if product.discount > 0 %}
+                    <h2 class="text-danger me-3">KSh {{ (product.price * (1 - product.discount/100))|round(2) }}</h2>
+                    <del class="text-muted">KSh {{ product.price }}</del>
+                    <span class="badge bg-danger ms-2">{{ product.discount }}% OFF</span>
+                {% else %}
+                    <h2>KSh {{ product.price }}</h2>
+                {% endif %}
+            </div>
+            
+            <p class="mb-4">{{ product.description }}</p>
+            
+            <div class="d-flex mb-4">
+                <a href="{{ url_for('add_to_cart', product_id=product.id) }}" class="btn btn-primary me-3">
+                    <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                </a>
+                <a href="{{ url_for('checkout') }}" class="btn btn-success">
+                    <i class="fas fa-bolt me-2"></i> Buy Now
+                </a>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Delivery Information</h5>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-truck me-2 text-success"></i> Free delivery within Nairobi</li>
+                        <li><i class="fas fa-clock me-2 text-success"></i> Delivery within 24 hours</li>
+                        <li><i class="fas fa-phone me-2 text-success"></i> Call 0712 345 678 for inquiries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Related Products -->
+    <div class="mt-5">
+        <h2 class="mb-4">Related Products</h2>
+        <div class="row">
+            {% for related in related_products %}
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                    <div class="card h-100">
+                        <a href="{{ url_for('product_detail', product_id=related.id) }}">
+                            {% if related.image %}
+                                <img src="{{ get_image_url(related.image) }}" 
+                                     alt="{{ related.name }}" class="card-img-top" height="200">
+                            {% else %}
+                                <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                                    <span class="text-muted">No Image</span>
+                                </div>
+                            {% endif %}
+                        </a>
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{{ url_for('product_detail', product_id=related.id) }}" class="text-decoration-none text-dark">
+                                    {{ related.name }}
+                                </a>
+                            </h5>
+                            <div>
+                                {% if related.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (related.price * (1 - related.discount/100))|round(2) }}</span>
+                                    <del class="text-muted small">KSh {{ related.price }}</del>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ related.price }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white">
+                            <a href="{{ url_for('add_to_cart', product_id=related.id) }}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="fas fa-cart-plus me-1"></i> Add to Cart
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-12">
+                    <p class="text-center text-muted">No related products found</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
