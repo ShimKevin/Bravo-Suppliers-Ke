@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: bravo-suppliers
+    env: python
+    plan: free
+    buildCommand: "./.render/build.sh"
+    startCommand: "gunicorn app:app"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URI
+        fromDatabase:
+          name: bravo-db
+          property: connectionString
+      # Add your other environment variables here
+
+databases:
+  - name: bravo-db
+    plan: free
+    databaseName: bravo
+    user: bravo_user

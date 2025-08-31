@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 from sqlalchemy import or_, text
+from flask_migrate import Migrate
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,6 +46,7 @@ handler.setFormatter(logging.Formatter(
 app.logger.addHandler(handler)
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.login_view = 'admin_login'
 mail = Mail(app)
@@ -1529,6 +1531,17 @@ def contact():
     return render_template('contact.html',
                            cart_count=cart_count,
                            cart_total=cart_total)
+
+# Handle database connection for Render
+@app.before_request
+def before_request():
+    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+
+# Health check endpoint for Render
+@app.route('/health')
+def health_check():
+    return jsonify(status="OK"), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
