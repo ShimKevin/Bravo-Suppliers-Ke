@@ -20,7 +20,13 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI', 'postgresql://user:password@localhost/didi')
+
+# Handle database URL for Render
+database_url = os.getenv('DATABASE_URI', 'postgresql://user:password@localhost/didi')
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'static/uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['SCRAPED_IMAGES'] = os.path.join(os.path.dirname(__file__), 'static/scraped_images')
@@ -1535,6 +1541,7 @@ def contact():
 # Handle database connection for Render
 @app.before_request
 def before_request():
+    # Ensure proper database URL format
     if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
         app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
 
