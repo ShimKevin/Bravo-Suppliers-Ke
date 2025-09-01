@@ -14,7 +14,8 @@ services:
         fromDatabase:
           name: bravo-db
           property: connectionString
-      # Add your other environment variables here
+      - key: FLASK_APP
+        value: app.py
 
 databases:
   - name: bravo-db
