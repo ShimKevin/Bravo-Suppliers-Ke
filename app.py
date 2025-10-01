@@ -19,6 +19,7 @@ from flask_migrate import Migrate
 load_dotenv()
 
 app = Flask(__name__)
+application = app
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback-secret-key')
 
 # Handle database URL for pg8000
