@@ -532,7 +532,7 @@ def send_order_email(order, order_items):
         <p><strong>Delivery Fee:</strong> KSh 300.00</p>
         <p><strong>Total Amount:</strong> KSh {order.total_amount:.2f}</p>
         
-        <p>Thank you for choosing Bravo Suppliers Ke.!</p>
+        <p>Thank you for choosing Bravo Shoppers Ke.!</p>
         """
         
         msg = Message(
