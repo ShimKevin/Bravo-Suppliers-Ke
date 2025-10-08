@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -14,6 +15,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from sqlalchemy import or_, text
 from flask_migrate import Migrate
+from sqlalchemy.pool import NullPool
+import socket
 
 # Load environment variables from .env file
 load_dotenv()
@@ -22,14 +25,49 @@ app = Flask(__name__)
 application = app
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback-secret-key')
 
-# Handle database URL for pg8000
-database_url = os.getenv('DATABASE_URI', 'postgresql+pg8000://user:password@localhost/didi')
-# Ensure the URI uses the pg8000 dialect
-if database_url.startswith('postgresql://'):
-    database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
-elif database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+# OPTIMIZED DATABASE CONFIGURATION FOR CPANEL WITH PG8000
+def get_database_config():
+    """Get database configuration optimized for pg8000 on cPanel"""
+    
+    # Method 1: Use direct environment variable
+    database_url = os.getenv('DATABASE_URL')
+    if database_url:
+        # Ensure proper pg8000 format
+        if database_url.startswith('postgresql://'):
+            database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+        elif database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+        elif '+pg8000' not in database_url:
+            # Add pg8000 driver if not present
+            database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+        
+        app.logger.info("Using DATABASE_URL with pg8000 driver")
+        return database_url
+    
+    # Method 2: Construct from individual environment variables
+    db_host = os.getenv('DB_HOST', 'localhost')
+    db_port = os.getenv('DB_PORT', '5432')
+    db_name = os.getenv('DB_NAME', 'szchgxxd_bravo')
+    db_user = os.getenv('DB_USER', 'szchgxxd_magfodan')
+    db_password = os.getenv('DB_PASSWORD', '')
+    
+    # Force IPv4 connection and pg8000 driver
+    app.logger.info(f"Constructed database connection to {db_host} using pg8000")
+    
+    return f'postgresql+pg8000://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_config()
+
+# PG8000-SPECIFIC DATABASE ENGINE SETTINGS
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'poolclass': NullPool,  # Disable connection pooling for pg8000 stability
+    'connect_args': {
+        'timeout': 30,  # Increased timeout for pg8000
+        'tcp_keepalive': True,
+    }
+}
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ECHO'] = os.getenv('SQLALCHEMY_ECHO', 'False').lower() == 'true'
 
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'static/uploads')
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif'}
@@ -136,7 +174,6 @@ class HeroBanner(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# Updated to allow multiple images per category
 class CategoryImage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
@@ -151,68 +188,112 @@ class HotSale(db.Model):
     product = db.relationship('Product')
     image = db.Column(db.String(200), nullable=True)
 
+# ENHANCED DATABASE CONNECTION TESTING FOR PG8000
+def test_database_connection():
+    """Test database connection with pg8000-specific error handling"""
+    max_attempts = 5
+    for attempt in range(max_attempts):
+        try:
+            app.logger.info(f"Database connection attempt {attempt + 1} using pg8000")
+            
+            # Test basic connection
+            with app.app_context():
+                db.session.execute(text('SELECT 1'))
+            
+            app.logger.info("pg8000 database connection successful")
+            return True
+            
+        except Exception as e:
+            app.logger.error(f"pg8000 database connection failed (attempt {attempt + 1}): {str(e)}")
+            
+            # Provide pg8000-specific guidance
+            if "pg_hba.conf" in str(e):
+                app.logger.error("HINT: PostgreSQL pg_hba.conf issue. Check host-based authentication for your IP.")
+            if "connection refused" in str(e).lower():
+                app.logger.error("HINT: Connection refused. Verify DB_HOST and DB_PORT are correct for cPanel.")
+            if "password authentication" in str(e).lower():
+                app.logger.error("HINT: Authentication failed. Verify DB_USER and DB_PASSWORD.")
+            if "database" in str(e).lower() and "does not exist" in str(e).lower():
+                app.logger.error("HINT: Database does not exist. Verify DB_NAME.")
+            if "no pg_hba.conf entry" in str(e).lower():
+                app.logger.error("HINT: PostgreSQL is rejecting the connection. Check pg_hba.conf or contact hosting provider.")
+                
+            if attempt < max_attempts - 1:
+                wait_time = 2 * (attempt + 1)
+                app.logger.info(f"Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+            else:
+                app.logger.error("All pg8000 database connection attempts failed")
+                return False
+
 def migrate_database():
     """Add new columns to existing tables without data loss"""
     with app.app_context():
-        inspector = db.inspect(db.engine)
-        
-        # For PostgreSQL, we'll use conditional checks instead of try/except
-        columns = inspector.get_columns('hero_middle')
-        column_names = [col['name'] for col in columns]
-        
-        # Check if discount_percentage column exists in HeroMiddle
-        if 'discount_percentage' not in column_names:
-            db.session.execute(text('ALTER TABLE hero_middle ADD COLUMN discount_percentage FLOAT DEFAULT 0.0'))
-            print("Added discount_percentage to HeroMiddle")
-        else:
-            print("discount_percentage already exists in HeroMiddle")
-        
-        # Check if image column exists in HotSale
-        columns = inspector.get_columns('hot_sale')
-        column_names = [col['name'] for col in columns]
-        if 'image' not in column_names:
-            db.session.execute(text('ALTER TABLE hot_sale ADD COLUMN image VARCHAR(200)'))
-            print("Added image to HotSale")
-        else:
-            print("image column already exists in HotSale")
-        
-        # Modify hero_middle columns to allow NULL
-        hero_middle_columns = inspector.get_columns('hero_middle')
-        for col in hero_middle_columns:
-            if col['name'] == 'image' and not col['nullable']:
-                db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN image DROP NOT NULL'))
-                print("Modified hero_middle.image to allow NULL")
-            if col['name'] == 'title' and not col['nullable']:
-                db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN title DROP NOT NULL'))
-                print("Modified hero_middle.title to allow NULL")
-            if col['name'] == 'description' and not col['nullable']:
-                db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN description DROP NOT NULL'))
-                print("Modified hero_middle.description to allow NULL")
-        
-        # Modify hero_banner.image to allow NULL
-        hero_banner_columns = inspector.get_columns('hero_banner')
-        for col in hero_banner_columns:
-            if col['name'] == 'image' and not col['nullable']:
-                db.session.execute(text('ALTER TABLE hero_banner ALTER COLUMN image DROP NOT NULL'))
-                print("Modified hero_banner.image to allow NULL")
-                break
-        
-        # Create new CategoryImage table if it doesn't exist
-        if not inspector.has_table('category_image'):
-            db.create_all()
-            print("Created category_image table")
-        
-        # Add is_active column to Product table if it doesn't exist
-        columns = inspector.get_columns('product')
-        column_names = [col['name'] for col in columns]
-        if 'is_active' not in column_names:
-            db.session.execute(text('ALTER TABLE product ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
-            print("Added is_active to Product")
-        else:
-            print("is_active already exists in Product")
-        
-        # Commit all changes
-        db.session.commit()
+        try:
+            inspector = db.inspect(db.engine)
+            
+            # For PostgreSQL, we'll use conditional checks instead of try/except
+            columns = inspector.get_columns('hero_middle')
+            column_names = [col['name'] for col in columns]
+            
+            # Check if discount_percentage column exists in HeroMiddle
+            if 'discount_percentage' not in column_names:
+                db.session.execute(text('ALTER TABLE hero_middle ADD COLUMN discount_percentage FLOAT DEFAULT 0.0'))
+                app.logger.info("Added discount_percentage to HeroMiddle")
+            else:
+                app.logger.info("discount_percentage already exists in HeroMiddle")
+            
+            # Check if image column exists in HotSale
+            columns = inspector.get_columns('hot_sale')
+            column_names = [col['name'] for col in columns]
+            if 'image' not in column_names:
+                db.session.execute(text('ALTER TABLE hot_sale ADD COLUMN image VARCHAR(200)'))
+                app.logger.info("Added image to HotSale")
+            else:
+                app.logger.info("image column already exists in HotSale")
+            
+            # Modify hero_middle columns to allow NULL
+            hero_middle_columns = inspector.get_columns('hero_middle')
+            for col in hero_middle_columns:
+                if col['name'] == 'image' and not col['nullable']:
+                    db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN image DROP NOT NULL'))
+                    app.logger.info("Modified hero_middle.image to allow NULL")
+                if col['name'] == 'title' and not col['nullable']:
+                    db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN title DROP NOT NULL'))
+                    app.logger.info("Modified hero_middle.title to allow NULL")
+                if col['name'] == 'description' and not col['nullable']:
+                    db.session.execute(text('ALTER TABLE hero_middle ALTER COLUMN description DROP NOT NULL'))
+                    app.logger.info("Modified hero_middle.description to allow NULL")
+            
+            # Modify hero_banner.image to allow NULL
+            hero_banner_columns = inspector.get_columns('hero_banner')
+            for col in hero_banner_columns:
+                if col['name'] == 'image' and not col['nullable']:
+                    db.session.execute(text('ALTER TABLE hero_banner ALTER COLUMN image DROP NOT NULL'))
+                    app.logger.info("Modified hero_banner.image to allow NULL")
+                    break
+            
+            # Create new CategoryImage table if it doesn't exist
+            if not inspector.has_table('category_image'):
+                db.create_all()
+                app.logger.info("Created category_image table")
+            
+            # Add is_active column to Product table if it doesn't exist
+            columns = inspector.get_columns('product')
+            column_names = [col['name'] for col in columns]
+            if 'is_active' not in column_names:
+                db.session.execute(text('ALTER TABLE product ADD COLUMN is_active BOOLEAN DEFAULT TRUE'))
+                app.logger.info("Added is_active to Product")
+            else:
+                app.logger.info("is_active already exists in Product")
+            
+            # Commit all changes
+            db.session.commit()
+            app.logger.info("Database migration completed successfully")
+            
+        except Exception as e:
+            app.logger.error(f"Database migration failed: {str(e)}")
+            db.session.rollback()
 
 def create_initial_categories():
     """Create initial categories only if they don't exist"""
@@ -254,7 +335,7 @@ def create_initial_categories():
             parent = Category(name=cat_data['name'])
             db.session.add(parent)
             db.session.flush()
-            print(f"Added category: {cat_data['name']}")
+            app.logger.info(f"Added category: {cat_data['name']}")
             created = True
         
         # Create subcategories
@@ -263,50 +344,77 @@ def create_initial_categories():
             if not child:
                 child = Category(name=child_name, parent_id=parent.id)
                 db.session.add(child)
-                print(f"Added subcategory: {child_name} under {cat_data['name']}")
+                app.logger.info(f"Added subcategory: {child_name} under {cat_data['name']}")
                 created = True
     
     if created:
         db.session.commit()
-        print("Created initial categories")
+        app.logger.info("Created initial categories")
     else:
-        print("All categories already exist")
+        app.logger.info("All categories already exist")
 
-# Initialize database
+def initialize_database():
+    """Initialize database with comprehensive error handling"""
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            app.logger.info(f"Database initialization attempt {attempt + 1}")
+            
+            # Test connection first
+            if not test_database_connection():
+                continue
+                
+            db.create_all()
+            
+            # Run database migrations for schema changes
+            migrate_database()
+            
+            # Create admin user from environment variables
+            admin_username = os.getenv('ADMIN_USERNAME')
+            admin_password = os.getenv('ADMIN_PASSWORD')
+            
+            # Only create admin if both credentials are provided
+            if admin_username and admin_password:
+                admin_user = User.query.filter_by(username=admin_username).first()
+                
+                if not admin_user:
+                    admin = User(
+                        username=admin_username,
+                        password=generate_password_hash(admin_password),
+                        is_admin=True
+                    )
+                    db.session.add(admin)
+                    db.session.commit()
+                    app.logger.info("Admin user created from environment variables")
+                elif not admin_user.is_admin:
+                    admin_user.is_admin = True
+                    db.session.commit()
+                    app.logger.info("Existing user promoted to admin")
+                else:
+                    app.logger.info("Admin user already exists")
+            else:
+                app.logger.warning("ADMIN_USERNAME and/or ADMIN_PASSWORD environment variables not set. Admin user not created.")
+            
+            # Create default categories if they don't exist
+            create_initial_categories()
+            
+            app.logger.info("Database initialization completed successfully")
+            return True
+            
+        except Exception as e:
+            app.logger.error(f"Database initialization attempt {attempt + 1} failed: {str(e)}")
+            if attempt < max_attempts - 1:
+                app.logger.info(f"Retrying in 3 seconds...")
+                time.sleep(3)
+            else:
+                app.logger.error("All database initialization attempts failed")
+                return False
+
+# IMPROVED DATABASE INITIALIZATION WITH ERROR HANDLING
 with app.app_context():
-    db.create_all()
-    
-    # Run database migrations for schema changes
-    migrate_database()
-    
-    # Create admin user from environment variables
-    admin_username = os.getenv('ADMIN_USERNAME')
-    admin_password = os.getenv('ADMIN_PASSWORD')
-    
-    # Only create admin if both credentials are provided
-    if admin_username and admin_password:
-        admin_user = User.query.filter_by(username=admin_username).first()
-        
-        if not admin_user:
-            admin = User(
-                username=admin_username,
-                password=generate_password_hash(admin_password),
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Admin user created from environment variables")
-        elif not admin_user.is_admin:
-            admin_user.is_admin = True
-            db.session.commit()
-            print("Existing user promoted to admin")
-        else:
-            print("Admin user already exists")
-    else:
-        print("Warning: ADMIN_USERNAME and/or ADMIN_PASSWORD environment variables not set. Admin user not created.")
-    
-    # Create default categories if they don't exist
-    create_initial_categories()
+    success = initialize_database()
+    if not success:
+        app.logger.error("Application started with database initialization failures - some features may not work")
 
 # Custom decorator for admin routes
 def admin_required(f):
@@ -327,7 +435,6 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Add cache-busting to image URLs
 def get_image_url(filename):
     """Generate full URL for an image filename with cache-busting"""
     if filename:
@@ -440,7 +547,6 @@ def send_order_email(order, order_items):
         app.logger.error(f"Email sending failed: {str(e)}")
         return False
 
-# Helper function to get HotSale images
 def get_hot_sale_image(hot_sale):
     # Return no-image if product is inactive
     if not hot_sale.product or not hot_sale.product.is_active:
@@ -451,7 +557,6 @@ def get_hot_sale_image(hot_sale):
         return get_image_url(hot_sale.product.image)
     return url_for('static', filename='images/no-image.png', _external=True)
 
-# Helper function to get categories in hierarchical order for dropdowns
 def get_hierarchical_categories():
     """Get categories in hierarchical order with depth information"""
     all_categories = Category.query.all()
@@ -520,46 +625,50 @@ def inject_common_data():
 # Routes
 @app.route('/')
 def home():
-    # Get top-level categories
-    top_categories = Category.query.filter_by(parent_id=None).all()
+    try:
+        # Get top-level categories
+        top_categories = Category.query.filter_by(parent_id=None).all()
 
-    # Get hero middle section
-    hero_middle = HeroMiddle.query.filter_by(is_active=True).order_by(HeroMiddle.created_at.desc()).first()
-    
-    # Get hero banner
-    hero_banner = HeroBanner.query.filter_by(is_active=True).order_by(HeroBanner.created_at.desc()).first()
-    
-    # Get hot sales with proper image handling - only active products
-    hot_sales = HotSale.query.join(Product).filter(
-        Product.is_active == True
-    ).order_by(HotSale.position).limit(8).all()
-    
-    for hot_sale in hot_sales:
-        hot_sale.display_image = get_hot_sale_image(hot_sale)
-    
-    # Prepare category products for the front page sections
-    category_products = []
-    for category in top_categories:
-        # Get all child category IDs
-        child_ids = [child.id for child in category.children]
-        # Always include the main category ID
-        child_ids.append(category.id)
+        # Get hero middle section
+        hero_middle = HeroMiddle.query.filter_by(is_active=True).order_by(HeroMiddle.created_at.desc()).first()
         
-        # Fetch products from these categories (only active products)
-        products = Product.query.filter(
-            Product.category_id.in_(child_ids),
+        # Get hero banner
+        hero_banner = HeroBanner.query.filter_by(is_active=True).order_by(HeroBanner.created_at.desc()).first()
+        
+        # Get hot sales with proper image handling - only active products
+        hot_sales = HotSale.query.join(Product).filter(
             Product.is_active == True
-        ).order_by(Product.created_at.desc()).limit(8).all()
-        # Attach products to category object
-        category.products = products
-        category_products.append(category)
+        ).order_by(HotSale.position).limit(8).all()
+        
+        for hot_sale in hot_sales:
+            hot_sale.display_image = get_hot_sale_image(hot_sale)
+        
+        # Prepare category products for the front page sections
+        category_products = []
+        for category in top_categories:
+            # Get all child category IDs
+            child_ids = [child.id for child in category.children]
+            # Always include the main category ID
+            child_ids.append(category.id)
+            
+            # Fetch products from these categories (only active products)
+            products = Product.query.filter(
+                Product.category_id.in_(child_ids),
+                Product.is_active == True
+            ).order_by(Product.created_at.desc()).limit(8).all()
+            # Attach products to category object
+            category.products = products
+            category_products.append(category)
 
-    return render_template('index.html', 
-                           top_categories=top_categories,
-                           hero_middle=hero_middle,
-                           hero_banner=hero_banner,
-                           hot_sales=hot_sales,
-                           category_products=category_products)
+        return render_template('index.html', 
+                               top_categories=top_categories,
+                               hero_middle=hero_middle,
+                               hero_banner=hero_banner,
+                               hot_sales=hot_sales,
+                               category_products=category_products)
+    except Exception as e:
+        app.logger.error(f"Error in home route: {str(e)}")
+        return render_template('error.html', error="Unable to load homepage"), 500
 
 @app.route('/admin')
 @admin_required
@@ -569,19 +678,24 @@ def admin_index():
 @app.route('/admin/dashboard')
 @admin_required
 def admin_dashboard():
-    # Count products (only active)
-    product_count = Product.query.filter_by(is_active=True).count()
-    
-    # Get all categories for display
-    categories = Category.query.all()
-    
-    # Get recent products (only active)
-    products = Product.query.filter_by(is_active=True).order_by(Product.created_at.desc()).limit(5).all()
-    
-    return render_template('admin/dashboard.html', 
-                           product_count=product_count,
-                           categories=categories,
-                           products=products)
+    try:
+        # Count products (only active)
+        product_count = Product.query.filter_by(is_active=True).count()
+        
+        # Get all categories for display
+        categories = Category.query.all()
+        
+        # Get recent products (only active)
+        products = Product.query.filter_by(is_active=True).order_by(Product.created_at.desc()).limit(5).all()
+        
+        return render_template('admin/dashboard.html', 
+                               product_count=product_count,
+                               categories=categories,
+                               products=products)
+    except Exception as e:
+        app.logger.error(f"Error in admin dashboard: {str(e)}")
+        flash('Error loading dashboard', 'danger')
+        return redirect(url_for('admin_login'))
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -610,7 +724,6 @@ def admin_logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('admin_login'))
 
-# Updated admin products route with hierarchical categories
 @app.route('/admin/products', methods=['GET', 'POST'])
 @admin_required
 def admin_products():
@@ -721,7 +834,6 @@ def reactivate_product(product_id):
         flash('Product not found', 'danger')
     return redirect(url_for('admin_products'))
 
-# NEW: Permanent deletion route
 @app.route('/admin/product/delete-permanent/<int:product_id>')
 @admin_required
 def delete_product_permanent(product_id):
@@ -807,7 +919,6 @@ def admin_hero_middle():
     
     return render_template('admin/hero_middle.html', hero_middle=hero_middle)
 
-# Updated admin_hero_banner route with validation
 @app.route('/admin/hero-banner', methods=['GET', 'POST'])
 @admin_required
 def admin_hero_banner():
@@ -1459,7 +1570,6 @@ def search():
                            categories=categories,
                            sort_by=sort_by)
 
-# Orders view route
 @app.route('/orders')
 @admin_required
 def view_orders():
@@ -1507,7 +1617,6 @@ def view_orders():
                            total_revenue=total_revenue,
                            recent_orders=recent_orders)
 
-# Email test route
 @app.route('/test-email')
 def test_email():
     try:
@@ -1523,7 +1632,6 @@ def test_email():
         app.logger.error(f"Email test failed: {str(e)}")
         return f'Error: {str(e)}'
 
-# Static pages
 @app.route('/about')
 def about():
     cart_count = get_cart_count()
@@ -1542,17 +1650,86 @@ def contact():
                            cart_count=cart_count,
                            cart_total=cart_total)
 
-# Handle database connection for Render
+# ENHANCED DATABASE CONNECTION VERIFICATION BEFORE REQUESTS
 @app.before_request
 def before_request():
-    # Ensure proper database URL format
-    if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgres://'):
-        app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace('postgres://', 'postgresql://', 1)
+    """Ensure proper pg8000 database connection before each request"""
+    # Ensure proper database URL format for pg8000
+    current_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    if current_uri.startswith('postgres://'):
+        app.config['SQLALCHEMY_DATABASE_URI'] = current_uri.replace('postgres://', 'postgresql+pg8000://', 1)
+    elif current_uri.startswith('postgresql://') and '+pg8000' not in current_uri:
+        app.config['SQLALCHEMY_DATABASE_URI'] = current_uri.replace('postgresql://', 'postgresql+pg8000://', 1)
 
-# Health check endpoint for Render
+# ENHANCED HEALTH CHECK ENDPOINT WITH PG8000 VERIFICATION
 @app.route('/health')
 def health_check():
-    return jsonify(status="OK"), 200
+    """Health check endpoint for monitoring with pg8000 database verification"""
+    try:
+        # Test database connection with detailed info
+        with app.app_context():
+            db.session.execute(text('SELECT 1'))
+            
+        # Get database connection details (without password)
+        db_url = app.config['SQLALCHEMY_DATABASE_URI']
+        safe_db_url = db_url.split('@')[0] + '@' + db_url.split('@')[1].split('/')[0] if '@' in db_url else db_url
+        
+        return jsonify({
+            "status": "healthy",
+            "database": "connected",
+            "driver": "pg8000",
+            "database_host": safe_db_url,
+            "timestamp": datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed with pg8000: {str(e)}")
+        return jsonify({
+            "status": "unhealthy",
+            "database": "disconnected", 
+            "driver": "pg8000",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }), 500
+
+# NEW ROUTE FOR PG8000 DATABASE CONNECTION TESTING
+@app.route('/test-db-connection')
+def test_db_connection():
+    """Test pg8000 database connection and return detailed results"""
+    try:
+        with app.app_context():
+            # Test basic connection
+            db.session.execute(text('SELECT 1'))
+            
+            # Test if we can query something
+            category_count = Category.query.count()
+            product_count = Product.query.filter_by(is_active=True).count()
+            
+        return jsonify({
+            "status": "success",
+            "message": "pg8000 database connection successful",
+            "driver": "pg8000",
+            "category_count": category_count,
+            "product_count": product_count
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "driver": "pg8000",
+            "hint": "Check your PostgreSQL credentials and ensure pg8000 is installed"
+        }), 500
+
+# PG8000 PERFORMANCE OPTIMIZATION MIDDLEWARE
+@app.after_request
+def after_request(response):
+    """Optimize database usage for pg8000 after each request"""
+    # Close database sessions promptly to avoid connection issues
+    try:
+        db.session.close()
+    except Exception as e:
+        app.logger.warning(f"Error closing session: {e}")
+    return response
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -126,6 +126,75 @@
         </div>
     </nav>
 
+    <!-- Mobile Navigation Structure -->
+    <!-- Mobile Top Bar -->
+    <div class="mobile-top-bar">
+        <div class="container">
+            <span>
+                <i class="fas fa-phone me-1"></i>
+                <a href="tel:0796516335" class="text-white">call us: 0796 516 335</a>
+            </span>
+        </div>
+    </div>
+
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+        <div class="mobile-header-container">
+            <div class="mobile-hamburger">
+                <button class="navbar-toggler" type="button">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            <div class="mobile-search">
+                <form class="search-form">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Search products...">
+                    </div>
+                </form>
+            </div>
+            <div class="mobile-cart">
+                <a href="{{ url_for('view_cart') }}" class="btn-link">
+                    <i class="fas fa-shopping-cart"></i>
+                    {% if cart_count > 0 %}
+                        <span class="cart-count-badge">{{ cart_count }}</span>
+                    {% else %}
+                        <span class="cart-count-badge">0</span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div class="mobile-nav-drawer">
+        <div class="mobile-nav-header">
+            <h5>Menu</h5>
+            <button class="mobile-nav-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mobile-nav-content">
+            <ul class="mobile-nav-categories">
+                <li><a href="{{ url_for('home') }}">Home</a></li>
+                {% for category in top_categories %}
+                    <li class="mobile-nav-category">
+                        <a href="{{ url_for('category', category_id=category.id) }}" class="fw-bold">{{ category.name }}</a>
+                        {% if category.children %}
+                            <ul class="mobile-subcategories">
+                                {% for subcategory in category.children %}
+                                    <li><a href="{{ url_for('category', category_id=subcategory.id) }}">{{ subcategory.name }}</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+                <li><a href="{{ url_for('about') }}">About Us</a></li>
+                <li><a href="{{ url_for('contact') }}">Contact</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="mobile-nav-overlay"></div>
+
     <!-- Main Content with adjusted padding -->
     <main class="py-4" style="padding-top: 180px !important;">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -212,66 +281,105 @@
             const searchForm = document.getElementById('search-form');
             
             // Live search functionality
-            searchInput.addEventListener('input', function() {
-                const query = this.value.trim();
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const query = this.value.trim();
+                    
+                    if (query.length < 2) {
+                        if (searchResults) searchResults.style.display = 'none';
+                        return;
+                    }
+                    
+                    fetch(`/search?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(products => {
+                            if (searchResults) {
+                                if (products.length > 0) {
+                                    searchResults.innerHTML = '';
+                                    products.forEach(product => {
+                                        const item = document.createElement('a');
+                                        item.href = `/product/${product.id}`;
+                                        item.className = 'search-result-item d-flex align-items-center';
+                                        
+                                        const img = document.createElement('img');
+                                        img.src = product.image ? `/static/uploads/${product.image}` : 'https://via.placeholder.com/40?text=No+Image';
+                                        img.className = 'search-result-image';
+                                        img.alt = product.name;
+                                        
+                                        const textDiv = document.createElement('div');
+                                        textDiv.innerHTML = `
+                                            <div class="fw-bold">${product.name}</div>
+                                            <div>KSh ${product.price.toFixed(2)}</div>
+                                        `;
+                                        
+                                        item.appendChild(img);
+                                        item.appendChild(textDiv);
+                                        searchResults.appendChild(item);
+                                    });
+                                    searchResults.style.display = 'block';
+                                } else {
+                                    searchResults.innerHTML = '<div class="p-3 text-center">No products found</div>';
+                                    searchResults.style.display = 'block';
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Search error:', error);
+                            if (searchResults) searchResults.style.display = 'none';
+                        });
+                });
                 
-                if (query.length < 2) {
-                    searchResults.style.display = 'none';
-                    return;
-                }
-                
-                fetch(`/search?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(products => {
-                        if (products.length > 0) {
-                            searchResults.innerHTML = '';
-                            products.forEach(product => {
-                                const item = document.createElement('a');
-                                item.href = `/product/${product.id}`;
-                                item.className = 'search-result-item d-flex align-items-center';
-                                
-                                const img = document.createElement('img');
-                                img.src = product.image ? `/static/uploads/${product.image}` : 'https://via.placeholder.com/40?text=No+Image';
-                                img.className = 'search-result-image';
-                                img.alt = product.name;
-                                
-                                const textDiv = document.createElement('div');
-                                textDiv.innerHTML = `
-                                    <div class="fw-bold">${product.name}</div>
-                                    <div>KSh ${product.price.toFixed(2)}</div>
-                                `;
-                                
-                                item.appendChild(img);
-                                item.appendChild(textDiv);
-                                searchResults.appendChild(item);
-                            });
-                            searchResults.style.display = 'block';
-                        } else {
-                            searchResults.innerHTML = '<div class="p-3 text-center">No products found</div>';
-                            searchResults.style.display = 'block';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
+                // Hide results when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (searchForm && !searchForm.contains(e.target)) {
                         searchResults.style.display = 'none';
-                    });
-            });
+                    }
+                });
+                
+                // Form submission redirects to search page
+                searchForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const query = searchInput.value.trim();
+                    if (query) {
+                        window.location.href = `/search?q=${encodeURIComponent(query)}`;
+                    }
+                });
+            }
+
+            // Mobile menu functionality
+            const hamburgerBtn = document.querySelector('.mobile-hamburger .navbar-toggler');
+            const closeBtn = document.querySelector('.mobile-nav-close');
+            const navDrawer = document.querySelector('.mobile-nav-drawer');
+            const overlay = document.querySelector('.mobile-nav-overlay');
             
-            // Hide results when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!searchForm.contains(e.target)) {
-                    searchResults.style.display = 'none';
-                }
-            });
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', function() {
+                    navDrawer.classList.add('open');
+                    overlay.classList.add('active');
+                });
+            }
             
-            // Form submission redirects to search page
-            searchForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const query = searchInput.value.trim();
-                if (query) {
-                    window.location.href = `/search?q=${encodeURIComponent(query)}`;
-                }
-            });
+            if (closeBtn) {
+                closeBtn.addEventListener('click', closeMobileNav);
+            }
+            
+            if (overlay) {
+                overlay.addEventListener('click', closeMobileNav);
+            }
+            
+            function closeMobileNav() {
+                navDrawer.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+
+            // Mobile search functionality
+            const mobileSearchInput = document.querySelector('.mobile-search input');
+            if (mobileSearchInput) {
+                mobileSearchInput.addEventListener('focus', function() {
+                    // You can add mobile-specific search behavior here
+                    console.log('Mobile search focused');
+                });
+            }
         });
     </script>
 </body>
