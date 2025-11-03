@@ -103,65 +103,224 @@
         </div>
     </section>
 
-    <!-- Hot Sales Section -->
+    <!-- Hot Sales Section with Dual-Row Continuous Motion -->
     <section class="hot-sales mb-5">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="section-title">Hot Sales</h2>
             <a href="#" class="btn btn-outline-primary">View All</a>
         </div>
         
-        <!-- Single Responsive Product Grid -->
-        <div class="product-row">
-            {% for hot_sale in hot_sales %}
-            <div class="product-item">
-                <div class="card product-card h-100 equal-height-cards">
-                    {% if hot_sale.product.discount > 0 %}
-                        <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
-                    {% endif %}
-                    <img src="{{ hot_sale.display_image }}" 
-                         class="card-img-top" 
-                         alt="{{ hot_sale.product.name }}"
-                         style="height: 180px; object-fit: contain;">
-                    <div class="card-body">
-                        <h5 class="card-title">{{ hot_sale.product.name }}</h5>
-                        <div class="product-price mb-2">
-                            {% if hot_sale.product.discount > 0 %}
-                                <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
-                                <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
-                            {% else %}
-                                <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
-                            {% endif %}
-                        </div>
-                        <div class="d-grid gap-2">
-                            <a href="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" class="btn btn-primary">
-                                <i class="fas fa-shopping-cart me-1"></i> Add to Cart
-                            </a>
-                            <button class="btn btn-outline-secondary view-details-btn" type="button"
-                                    onclick="toggleProductDetails(this)">
-                                View Details
-                            </button>
-                        </div>
-                        
-                        <!-- Expandable Product Details -->
-                        <details class="product-details-element mt-3">
-                            <summary style="display: none;"></summary>
-                            <div class="product-full-details">
-                                <hr>
-                                <p class="small">{{ hot_sale.product.description or 'No description available.' }}</p>
-                                <div class="d-flex justify-content-between align-items-center mt-2">
-                                    <span class="small text-muted">SKU: {{ hot_sale.product.sku or 'N/A' }}</span>
-                                    <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-sm btn-link p-0">Full Details</a>
-                                </div>
+        <!-- Dual Row Container -->
+        <div class="hot-sales-container">
+            <!-- Upper Row - Moves from Right to Left -->
+            <div class="hot-sales-row upper-row">
+                {% for hot_sale in hot_sales %}
+                <div class="hot-sales-item">
+                    <div class="card product-card h-100 equal-height-cards">
+                        {% if hot_sale.product.discount > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
+                        {% endif %}
+                        <!-- FIXED: Removed inline onerror, using data attribute -->
+                        <img src="{{ hot_sale.display_image }}" 
+                             class="card-img-top product-image" 
+                             alt="{{ hot_sale.product.name }}"
+                             data-fallback="{{ url_for('static', filename='images/no-image.png') }}"
+                             style="height: 180px; object-fit: contain;">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ hot_sale.product.name }}</h5>
+                            <div class="product-price mb-2">
+                                {% if hot_sale.product.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
+                                    <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
+                                {% endif %}
                             </div>
-                        </details>
+                            <div class="d-grid gap-2">
+                                <!-- UPDATED: Changed to POST form -->
+                                <form action="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                    </button>
+                                </form>
+                                <button class="btn btn-outline-secondary view-details-btn" type="button">
+                                    View Details
+                                </button>
+                            </div>
+                            
+                            <!-- Expandable Product Details -->
+                            <details class="product-details-element mt-3">
+                                <summary style="display: none;"></summary>
+                                <div class="product-full-details">
+                                    <hr>
+                                    <p class="small">{{ hot_sale.product.description or 'No description available.' }}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <span class="small text-muted">SKU: {{ hot_sale.product.sku or 'N/A' }}</span>
+                                        <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-sm btn-link p-0">Full Details</a>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
                     </div>
                 </div>
+                {% endfor %}
+                <!-- Duplicate items for seamless loop -->
+                {% for hot_sale in hot_sales %}
+                <div class="hot-sales-item">
+                    <div class="card product-card h-100 equal-height-cards">
+                        {% if hot_sale.product.discount > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
+                        {% endif %}
+                        <!-- FIXED: Removed inline onerror, using data attribute -->
+                        <img src="{{ hot_sale.display_image }}" 
+                             class="card-img-top product-image" 
+                             alt="{{ hot_sale.product.name }}"
+                             data-fallback="{{ url_for('static', filename='images/no-image.png') }}"
+                             style="height: 180px; object-fit: contain;">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ hot_sale.product.name }}</h5>
+                            <div class="product-price mb-2">
+                                {% if hot_sale.product.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
+                                    <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid gap-2">
+                                <!-- UPDATED: Changed to POST form -->
+                                <form action="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                    </button>
+                                </form>
+                                <button class="btn btn-outline-secondary view-details-btn" type="button">
+                                    View Details
+                                </button>
+                            </div>
+                            
+                            <!-- Expandable Product Details -->
+                            <details class="product-details-element mt-3">
+                                <summary style="display: none;"></summary>
+                                <div class="product-full-details">
+                                    <hr>
+                                    <p class="small">{{ hot_sale.product.description or 'No description available.' }}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <span class="small text-muted">SKU: {{ hot_sale.product.sku or 'N/A' }}</span>
+                                        <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-sm btn-link p-0">Full Details</a>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% else %}
-            <div class="product-item">
-                <div class="alert alert-info">No hot sales products available</div>
+            
+            <!-- Lower Row - Moves from Left to Right -->
+            <div class="hot-sales-row lower-row">
+                {% for hot_sale in hot_sales %}
+                <div class="hot-sales-item">
+                    <div class="card product-card h-100 equal-height-cards">
+                        {% if hot_sale.product.discount > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
+                        {% endif %}
+                        <!-- FIXED: Removed inline onerror, using data attribute -->
+                        <img src="{{ hot_sale.display_image }}" 
+                             class="card-img-top product-image" 
+                             alt="{{ hot_sale.product.name }}"
+                             data-fallback="{{ url_for('static', filename='images/no-image.png') }}"
+                             style="height: 180px; object-fit: contain;">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ hot_sale.product.name }}</h5>
+                            <div class="product-price mb-2">
+                                {% if hot_sale.product.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
+                                    <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid gap-2">
+                                <!-- UPDATED: Changed to POST form -->
+                                <form action="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                    </button>
+                                </form>
+                                <button class="btn btn-outline-secondary view-details-btn" type="button">
+                                    View Details
+                                </button>
+                            </div>
+                            
+                            <!-- Expandable Product Details -->
+                            <details class="product-details-element mt-3">
+                                <summary style="display: none;"></summary>
+                                <div class="product-full-details">
+                                    <hr>
+                                    <p class="small">{{ hot_sale.product.description or 'No description available.' }}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <span class="small text-muted">SKU: {{ hot_sale.product.sku or 'N/A' }}</span>
+                                        <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-sm btn-link p-0">Full Details</a>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                <!-- Duplicate items for seamless loop -->
+                {% for hot_sale in hot_sales %}
+                <div class="hot-sales-item">
+                    <div class="card product-card h-100 equal-height-cards">
+                        {% if hot_sale.product.discount > 0 %}
+                            <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ hot_sale.product.discount }}%</span>
+                        {% endif %}
+                        <!-- FIXED: Removed inline onerror, using data attribute -->
+                        <img src="{{ hot_sale.display_image }}" 
+                             class="card-img-top product-image" 
+                             alt="{{ hot_sale.product.name }}"
+                             data-fallback="{{ url_for('static', filename='images/no-image.png') }}"
+                             style="height: 180px; object-fit: contain;">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ hot_sale.product.name }}</h5>
+                            <div class="product-price mb-2">
+                                {% if hot_sale.product.discount > 0 %}
+                                    <span class="text-danger fw-bold">KSh {{ (hot_sale.product.price * (1 - hot_sale.product.discount/100)) | round(2) }}</span>
+                                    <span class="text-muted text-decoration-line-through">KSh {{ hot_sale.product.price }}</span>
+                                {% else %}
+                                    <span class="fw-bold">KSh {{ hot_sale.product.price }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-grid gap-2">
+                                <!-- UPDATED: Changed to POST form -->
+                                <form action="{{ url_for('add_to_cart', product_id=hot_sale.product.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                    </button>
+                                </form>
+                                <button class="btn btn-outline-secondary view-details-btn" type="button">
+                                    View Details
+                                </button>
+                            </div>
+                            
+                            <!-- Expandable Product Details -->
+                            <details class="product-details-element mt-3">
+                                <summary style="display: none;"></summary>
+                                <div class="product-full-details">
+                                    <hr>
+                                    <p class="small">{{ hot_sale.product.description or 'No description available.' }}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <span class="small text-muted">SKU: {{ hot_sale.product.sku or 'N/A' }}</span>
+                                        <a href="{{ url_for('product_detail', product_id=hot_sale.product.id) }}" class="btn btn-sm btn-link p-0">Full Details</a>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
         </div>
     </section>
 
@@ -187,9 +346,11 @@
                             {% if product.discount > 0 %}
                                 <span class="badge bg-danger position-absolute top-0 start-0 m-2">-{{ product.discount }}%</span>
                             {% endif %}
-                            <img src="{{ get_image_url(product.image) or 'https://via.placeholder.com/300x300?text=No+Image' }}" 
-                                 class="card-img-top" 
+                            <!-- FIXED: Removed inline onerror, using data attribute -->
+                            <img src="{{ get_image_url(product.image) or url_for('static', filename='images/no-image.png') }}" 
+                                 class="card-img-top product-image" 
                                  alt="{{ product.name }}"
+                                 data-fallback="{{ url_for('static', filename='images/no-image.png') }}"
                                  style="height: 180px; object-fit: contain;">
                             <div class="card-body">
                                 <h5 class="card-title">{{ product.name }}</h5>
@@ -202,11 +363,13 @@
                                     {% endif %}
                                 </div>
                                 <div class="d-grid gap-2">
-                                    <a href="{{ url_for('add_to_cart', product_id=product.id) }}" class="btn btn-primary">
-                                        <i class="fas fa-shopping-cart me-1"></i> Add to Cart
-                                    </a>
-                                    <button class="btn btn-outline-secondary view-details-btn" type="button"
-                                            onclick="toggleProductDetails(this)">
+                                    <!-- UPDATED: Changed to POST form -->
+                                    <form action="{{ url_for('add_to_cart', product_id=product.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="fas fa-shopping-cart me-1"></i> Add to Cart
+                                        </button>
+                                    </form>
+                                    <button class="btn btn-outline-secondary view-details-btn" type="button">
                                         View Details
                                     </button>
                                 </div>
@@ -237,78 +400,102 @@
 </div>
 
 <script>
-    // Toggle subcategories
-    document.querySelectorAll('.toggle-subcategories').forEach(button => {
-        button.addEventListener('click', function(e) {
-            e.preventDefault();
-            const categoryId = this.getAttribute('data-category-id');
-            const subList = document.getElementById(`subcategories-${categoryId}`);
-            const icon = this.querySelector('i');
+    // Initialize all functionality when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Image fallback handler
+        function handleImageError(img) {
+            const fallbackUrl = img.getAttribute('data-fallback');
+            if (fallbackUrl && img.src !== fallbackUrl) {
+                img.src = fallbackUrl;
+            }
+        }
+
+        // Set up image error handlers
+        document.querySelectorAll('.product-image').forEach(img => {
+            img.addEventListener('error', function() {
+                handleImageError(this);
+            });
             
-            if (subList.style.display === 'none' || subList.style.display === '') {
-                subList.style.display = 'block';
-                icon.classList.remove('fa-chevron-down');
-                icon.classList.add('fa-chevron-up');
-            } else {
-                subList.style.display = 'none';
-                icon.classList.remove('fa-chevron-up');
-                icon.classList.add('fa-chevron-down');
+            // Pre-load error handling for cached broken images
+            if (img.complete && img.naturalHeight === 0) {
+                handleImageError(img);
             }
         });
-    });
 
-    // Enhanced toggle function for mobile
-    function toggleProductDetails(button) {
-        const cardBody = button.closest('.card-body');
-        const detailsElement = cardBody.querySelector('.product-details-element');
-        const isExpanded = detailsElement.hasAttribute('open');
-        
-        // Close all other expanded details in the same category section
-        const currentSection = button.closest('.category-section') || button.closest('.hot-sales');
-        if (currentSection) {
-            currentSection.querySelectorAll('.product-details-element[open]').forEach(item => {
-                if (item !== detailsElement) {
-                    item.removeAttribute('open');
-                    const otherButton = item.closest('.card-body').querySelector('.view-details-btn');
-                    otherButton.textContent = 'View Details';
-                    otherButton.setAttribute('aria-expanded', 'false');
+        // Toggle subcategories
+        document.querySelectorAll('.toggle-subcategories').forEach(button => {
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                const categoryId = this.getAttribute('data-category-id');
+                const subList = document.getElementById(`subcategories-${categoryId}`);
+                const icon = this.querySelector('i');
+                
+                if (subList.style.display === 'none' || subList.style.display === '') {
+                    subList.style.display = 'block';
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                } else {
+                    subList.style.display = 'none';
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
                 }
             });
-        }
-        
-        // Toggle current details
-        if (isExpanded) {
-            detailsElement.removeAttribute('open');
-            button.textContent = 'View Details';
-            button.setAttribute('aria-expanded', 'false');
-        } else {
-            detailsElement.setAttribute('open', '');
-            button.textContent = 'Hide Details';
-            button.setAttribute('aria-expanded', 'true');
+        });
+
+        // Enhanced toggle function for mobile
+        function toggleProductDetails(button) {
+            const cardBody = button.closest('.card-body');
+            const detailsElement = cardBody.querySelector('.product-details-element');
+            const isExpanded = detailsElement.hasAttribute('open');
             
-            // Scroll details into view on mobile if needed
-            if (window.innerWidth <= 767) {
-                setTimeout(() => {
-                    detailsElement.scrollIntoView({ 
-                        behavior: 'smooth', 
-                        block: 'nearest' 
-                    });
-                }, 300);
+            // Close all other expanded details in the same category section
+            const currentSection = button.closest('.category-section') || button.closest('.hot-sales');
+            if (currentSection) {
+                currentSection.querySelectorAll('.product-details-element[open]').forEach(item => {
+                    if (item !== detailsElement) {
+                        item.removeAttribute('open');
+                        const otherButton = item.closest('.card-body').querySelector('.view-details-btn');
+                        otherButton.textContent = 'View Details';
+                        otherButton.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
+            
+            // Toggle current details
+            if (isExpanded) {
+                detailsElement.removeAttribute('open');
+                button.textContent = 'View Details';
+                button.setAttribute('aria-expanded', 'false');
+            } else {
+                detailsElement.setAttribute('open', '');
+                button.textContent = 'Hide Details';
+                button.setAttribute('aria-expanded', 'true');
+                
+                // Scroll details into view on mobile if needed
+                if (window.innerWidth <= 767) {
+                    setTimeout(() => {
+                        detailsElement.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'nearest' 
+                        });
+                    }, 300);
+                }
             }
         }
-    }
 
-    // Initialize with mobile optimizations
-    document.addEventListener('DOMContentLoaded', function() {
         // Initialize all view details buttons
         document.querySelectorAll('.view-details-btn').forEach(button => {
             button.setAttribute('aria-expanded', 'false');
             button.setAttribute('role', 'button');
             button.setAttribute('tabindex', '0');
             
+            // Add click event
+            button.addEventListener('click', function() {
+                toggleProductDetails(this);
+            });
+            
             // Add keyboard support
             button.addEventListener('keypress', function(e) {
-                // FIX: The space character must be a quoted string
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     toggleProductDetails(this);
@@ -329,6 +516,16 @@
                     });
                 }
             });
+        }
+
+        // Hot Sales Animation Control
+        const upperRow = document.querySelector('.hot-sales-row.upper-row');
+        const lowerRow = document.querySelector('.hot-sales-row.lower-row');
+        
+        if (upperRow && lowerRow) {
+            // Adjust animation duration for smooth continuous movement
+            upperRow.style.animationDuration = '60s';
+            lowerRow.style.animationDuration = '60s';
         }
     });
 </script>

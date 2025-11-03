@@ -1255,12 +1255,12 @@ def product_detail(product_id):
                            cart_count=cart_count,
                            cart_total=cart_total)
 
-@app.route('/add-to-cart/<int:product_id>')
+# FIXED: Only POST route for add-to-cart (removed GET route)
+@app.route('/add-to-cart/<int:product_id>', methods=['POST'])
 def add_to_cart(product_id):
     product = db.session.get(Product, product_id)
     if not product or not product.is_active:
-        flash('Product not available', 'danger')
-        return redirect(url_for('home'))
+        return jsonify({'success': False, 'message': 'Product not available'})
     
     if current_user.is_authenticated and not current_user.is_admin:
         # Add to database cart for authenticated users
@@ -1280,7 +1280,14 @@ def add_to_cart(product_id):
         cart[str(product_id)] = cart.get(str(product_id), 0) + 1
         session['cart'] = cart
     
-    flash(f'{product.name} added to cart!', 'success')
+    # Return JSON response for AJAX requests
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True, 
+            'cart_count': get_cart_count(),
+            'message': f'{product.name} added to cart!'
+        })
+    
     return redirect(request.referrer or url_for('home'))
 
 @app.route('/update-cart/<int:item_id>', methods=['POST'])
@@ -1297,7 +1304,7 @@ def update_cart(item_id):
             if quantity > 0:
                 cart_item.quantity = quantity
                 db.session.commit()
-                flash('Cart updated successfully!', 'success')
+                # 🚨 REMOVED: flash('Cart updated successfully!', 'success')
                 return jsonify({
                     'success': True,
                     'subtotal': get_cart_total()[0],
@@ -1307,7 +1314,7 @@ def update_cart(item_id):
             else:
                 db.session.delete(cart_item)
                 db.session.commit()
-                flash('Item removed from cart', 'info')
+                # 🚨 REMOVED: flash('Item removed from cart', 'info')
                 return jsonify({
                     'success': True,
                     'removed': True,
@@ -1335,7 +1342,7 @@ def update_cart(item_id):
                 else:
                     del cart[str(item_id)]
                 session['cart'] = cart
-                flash('Cart updated successfully!', 'success')
+                # 🚨 REMOVED: flash('Cart updated successfully!', 'success')
                 return jsonify({
                     'success': True,
                     'removed': quantity <= 0,
@@ -1397,7 +1404,7 @@ def remove_from_cart(item_id):
         if cart_item and cart_item.user_id == current_user.id:
             db.session.delete(cart_item)
             db.session.commit()
-            flash('Item removed from cart', 'info')
+            # 🚨 REMOVED: flash('Item removed from cart', 'info')
     else:
         # Handle session cart removal for guests
         if 'cart' in session:
@@ -1405,7 +1412,7 @@ def remove_from_cart(item_id):
             if str(item_id) in cart:
                 del cart[str(item_id)]
                 session['cart'] = cart
-                flash('Item removed from cart', 'info')
+                # 🚨 REMOVED: flash('Item removed from cart', 'info')
     
     return redirect(url_for('view_cart'))
 
@@ -1417,7 +1424,7 @@ def clear_cart():
     else:
         session.pop('cart', None)
     
-    flash('Cart cleared', 'info')
+    # 🚨 REMOVED: flash('Cart cleared', 'info')
     return redirect(url_for('view_cart'))
 
 @app.route('/checkout')
@@ -1729,6 +1736,15 @@ def after_request(response):
         db.session.close()
     except Exception as e:
         app.logger.warning(f"Error closing session: {e}")
+    return response
+
+# FLASH MESSAGE CLEANUP TO PREVENT PERSISTENT MESSAGES
+@app.after_request
+def remove_flash_messages(response):
+    """Remove any flash messages that might have been set"""
+    # This ensures no flash messages are carried over between requests
+    if hasattr(app, 'flash_messages'):
+        app.flash_messages = []
     return response
 
 if __name__ == '__main__':

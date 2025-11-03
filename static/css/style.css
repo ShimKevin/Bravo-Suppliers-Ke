@@ -65,6 +65,11 @@ a:hover {
     display: none;
 }
 
+/* ===== NEW: MOBILE LOGO BAR ===== */
+.mobile-logo-bar {
+    display: none;
+}
+
 /* Default desktop styles remain the same */
 .top-bar {
     position: fixed;
@@ -483,25 +488,35 @@ main {
     100% { background-position: 0% 50%; }
 }
 
-/* Updated Hot Sales Animation */
+/* ===== UPDATED HOT SALES DUAL ROW ANIMATION ===== */
 .hot-sales-container {
-    overflow: hidden;
     position: relative;
-    height: 400px;
+    height: 500px; /* Increased height to accommodate two rows */
+    overflow: hidden;
+    margin-bottom: 20px;
 }
 
-.hot-sales-track {
+.hot-sales-row {
     display: flex;
     position: absolute;
-    top: 0;
-    left: 0;
-    animation: hotSalesScroll 30s linear infinite;
     width: max-content;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+.hot-sales-row.upper-row {
+    top: 0;
+    animation: moveRightToLeft 60s linear infinite;
+}
+
+.hot-sales-row.lower-row {
+    bottom: 0;
+    animation: moveLeftToRight 60s linear infinite;
 }
 
 .hot-sales-item {
     flex: 0 0 auto;
-    width: 300px;
+    width: 280px;
     margin-right: 25px;
     transition: transform 0.3s ease;
 }
@@ -510,16 +525,27 @@ main {
     transform: translateY(-5px);
 }
 
-.hot-sales-container:hover .hot-sales-track {
+.hot-sales-container:hover .hot-sales-row {
     animation-play-state: paused;
 }
 
-@keyframes hotSalesScroll {
+/* Animation for upper row - right to left */
+@keyframes moveRightToLeft {
     0% {
-        transform: translateX(100%); /* Start from right */
+        transform: translateX(100%);
     }
     100% {
-        transform: translateX(-100%); /* Move to left */
+        transform: translateX(-100%);
+    }
+}
+
+/* Animation for lower row - left to right */
+@keyframes moveLeftToRight {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
     }
 }
 
@@ -635,11 +661,13 @@ main {
     box-shadow: var(--card-shadow);
 }
 
+/* FIXED: Enhanced product images for better mobile visibility */
 .product-card .card-img-top {
     height: 180px;
     object-fit: contain;
     padding: 12px;
     background-color: var(--light);
+    width: 100%;
 }
 
 .product-card .card-body {
@@ -815,6 +843,36 @@ footer a.text-white:hover {
     text-decoration: none;
 }
 
+/* ===== UPDATED PAYMENT LOGOS - REAL COLORS ===== */
+.payment-logos {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.payment-logo {
+    height: 35px;
+    width: auto;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+    /* Remove the white filter to show original colors */
+    filter: none !important;
+}
+
+.payment-logo:hover {
+    transform: scale(1.05);
+}
+
+/* Specific styling for M-Pesa logo to maintain visibility */
+.mpesa-logo {
+    height: 40px; /* Slightly larger for better visibility */
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    padding: 2px;
+}
+
 /* Cart Page */
 .cart-table img {
     width: 70px;
@@ -984,7 +1042,8 @@ footer a.text-white:hover {
     .mobile-nav-drawer,
     .mobile-nav-overlay,
     .mobile-top-bar,
-    .mobile-header {
+    .mobile-header,
+    .mobile-logo-bar {
         display: none !important;
     }
 }
@@ -1031,6 +1090,37 @@ footer a.text-white:hover {
 .mobile-subcategories a {
     font-size: 0.9rem;
     color: #666;
+}
+
+/* ===== UPDATED MOBILE LOGO BAR STYLING ===== */
+.mobile-logo-bar {
+    position: fixed;
+    top: 33px; /* Below mobile top bar */
+    width: 100%;
+    z-index: 999;
+    background-color: var(--white);
+    padding: 8px 15px;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-logo {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--primary);
+    text-align: center;
+    line-height: 1.2;
+    margin: 0;
+    text-decoration: none;
+}
+
+.mobile-logo:hover {
+    color: var(--primary);
+    text-decoration: none;
 }
 
 /* ===== MOBILE RESPONSIVE STYLES ===== */
@@ -1096,8 +1186,10 @@ footer a.text-white:hover {
         font-size: 1.4rem;
     }
     
+    /* FIXED: Better tablet image sizing */
     .product-card .card-img-top {
         height: 160px;
+        padding: 10px;
     }
     
     .category-card .icon-placeholder {
@@ -1122,13 +1214,26 @@ footer a.text-white:hover {
     }
     
     .mobile-top-bar,
-    .mobile-header {
-        display: block !important;
+    .mobile-header,
+    .mobile-logo-bar {
+        display: flex !important;
     }
     
-    /* Reset main padding for mobile */
+    /* Adjust mobile header position to be below logo bar */
+    .mobile-header {
+        position: fixed;
+        top: 83px; /* 33px (top-bar) + 50px (logo-bar) */
+        width: 100%;
+        z-index: 999;
+        background-color: var(--white);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 8px 15px;
+        height: 50px;
+    }
+    
+    /* ===== FIXED: PERFECT MOBILE SPACING FOR HERO BELOW SEARCH BAR ===== */
     main {
-        padding-top: 100px !important;
+        padding-top: 143px !important; /* Perfect spacing for mobile */
     }
     
     /* Mobile Top Bar - Contact info only - NOW CLICKABLE */
@@ -1139,10 +1244,14 @@ footer a.text-white:hover {
         z-index: 1000;
         background-color: var(--dark);
         color: var(--white);
-        padding: 8px 0;
+        padding: 6px 0;
         font-size: 0.8rem;
         text-align: center;
         border-bottom: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 33px;
     }
     
     .mobile-top-bar .container {
@@ -1154,21 +1263,12 @@ footer a.text-white:hover {
     }
     
     /* Mobile Header - matches visiontech.co.ke layout */
-    .mobile-header {
-        position: fixed;
-        top: 33px;
-        width: 100%;
-        z-index: 999;
-        background-color: var(--white);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        padding: 10px 15px;
-    }
-    
     .mobile-header-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
         width: 100%;
+        height: 100%;
     }
     
     /* Hamburger menu on left */
@@ -1320,10 +1420,15 @@ footer a.text-white:hover {
         display: block;
     }
     
-    /* ===== ENHANCED MOBILE HERO SECTION - ATTACHED TO SEARCH BAR ===== */
+    /* ===== ENHANCED MOBILE HERO SECTION - LARGER WITH 200PX IMAGE ===== */
+    .hero-section {
+        margin-top: 8px !important; /* Perfect spacing from search bar */
+        margin-bottom: 8px !important; /* Perfect spacing to HotSales */
+        background: none;
+        gap: 0;
+    }
+
     .hero-section.card {
-        margin-top: 0 !important;
-        margin-bottom: 0 !important;
         border: none !important;
         box-shadow: none !important;
         background: none !important;
@@ -1340,86 +1445,114 @@ footer a.text-white:hover {
         --bs-gutter-x: 0 !important;
     }
 
-    /* Ensure hero-middle attaches flush */
-    .hero-middle {
-        margin-top: 0 !important;
-        border-top: none !important;
-    }
-    
-    .hero-section {
-        flex-direction: column;
-        margin-bottom: 20px;
-        background: none;
-        gap: 0;
-        margin-top: 0; /* Remove any top margin */
-    }
-    
     /* Hide left category section and right banner on mobile */
     .hero-left,
     .hero-right {
         display: none !important;
     }
     
-    /* Make hero middle rectangular and full width - ATTACHED BELOW SEARCH BAR */
+    /* ===== LARGER HERO CARD FOR MOBILE - COVERS CATEGORY BAR SPACE ===== */
     .hero-middle {
         flex: 0 0 100% !important;
-        min-height: 220px !important; /* Use min-height instead of height */
+        min-height: 380px !important; /* Increased height to cover space from hidden categories */
         height: auto !important;
-        border-radius: 8px;
+        border-radius: 12px !important;
         margin-bottom: 0;
-        margin-top: 5px; /* Minimal spacing from search bar */
-        order: 3; /* Ensure it comes after mobile header in flow */
+        margin-top: 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important;
     }
     
     .trending-container {
-        padding: 12px;
-        min-height: 220px;
+        padding: 25px !important;
+        min-height: 380px !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
     }
     
+    /* ===== LARGER HERO IMAGE (200PX) WITH PROPER SPACING ===== */
     .dance-animation {
-        max-height: 90px;
+        max-height: 200px !important; /* Exactly 200px as requested */
+        width: auto !important;
+        margin: 15px auto !important;
+        display: block;
     }
     
+    /* ===== IMPROVED TEXT SPACING - NO OVERLAPPING ===== */
     .hero-middle h3 {
-        font-size: 1rem;
-        margin-top: 6px;
-        margin-bottom: 4px;
+        font-size: 1.5rem !important;
+        margin-top: 20px !important;
+        margin-bottom: 12px !important;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        line-height: 1.3;
+        max-width: 100%;
+        padding: 0 15px;
+        font-weight: 600;
     }
     
     .hero-middle p {
-        font-size: 0.75rem;
+        font-size: 1rem !important;
         max-width: 100%;
-        margin-bottom: 6px;
+        margin-bottom: 20px !important;
+        line-height: 1.5;
+        padding: 0 15px;
     }
     
+    /* ===== REPOSITIONED BUTTON AND SLOGAN FOR BETTER SPACING ===== */
     .shop-now-btn {
-        padding: 4px 12px;
-        font-size: 0.75rem;
-        bottom: 10px;
-        left: 10px;
+        padding: 12px 30px !important;
+        font-size: 1.1rem !important;
+        position: relative !important;
+        bottom: auto !important;
+        left: auto !important;
+        margin: 15px 0 !important;
+        border-radius: 8px !important;
+        font-weight: bold;
     }
     
     .hero-slogan {
-        font-size: 0.7rem;
-        padding: 3px 8px;
-        bottom: 10px;
-        right: 10px;
-        max-width: 55%;
+        font-size: 1rem !important;
+        padding: 12px 18px !important;
+        position: relative !important;
+        bottom: auto !important;
+        right: auto !important;
+        max-width: 100%;
+        border-radius: 8px !important;
+        margin: 10px 0 !important;
+        text-align: center !important;
+        line-height: 1.4;
+        font-weight: 600;
     }
     
     .today-deal {
-        top: 8px;
-        right: 8px;
-        padding: 2px 8px;
-        font-size: 0.7rem;
+        top: 15px !important;
+        right: 15px !important;
+        padding: 8px 18px !important;
+        font-size: 0.9rem !important;
+        border-radius: 20px !important;
     }
     
-    /* ===== ENHANCED MOBILE PRODUCT GRID ===== */
+    /* Reorder elements for better mobile flow using flex order */
+    .trending-container {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .today-deal { order: 1; }
+    .dance-animation { order: 2; }
+    .hero-middle h3 { order: 3; }
+    .hero-middle p { order: 4; }
+    .shop-now-btn { order: 5; }
+    .hero-slogan { order: 6; }
+    
+    /* ===== ENHANCED MOBILE PRODUCT GRID WITH LARGER IMAGES ===== */
     .product-row {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 4px !important; /* Minimal horizontal and vertical spacing */
-        margin-bottom: 15px;
+        gap: 6px !important;
+        margin-bottom: 20px !important;
     }
 
     /* Remove all margins and padding that create uneven spacing */
@@ -1431,7 +1564,7 @@ footer a.text-white:hover {
     /* Ensure product cards have no external margins */
     .product-card {
         margin-bottom: 0 !important;
-        border-radius: 6px;
+        border-radius: 8px !important;
         overflow: hidden;
     }
 
@@ -1442,42 +1575,45 @@ footer a.text-white:hover {
 
     /* Ensure even vertical spacing between rows */
     .product-row {
-        row-gap: 4px !important;
+        row-gap: 6px !important;
     }
 
-    /* Optimize card content for tight spacing */
+    /* ENHANCED: LARGE mobile product images for maximum visibility */
+    .product-card .card-img-top {
+        height: 200px !important;
+        padding: 10px !important;
+        object-fit: contain !important;
+        width: 100% !important;
+        background-color: var(--light);
+    }
+
+    /* Optimize card content for balanced spacing */
     .product-card .card-body {
-        padding: 8px !important;
+        padding: 10px !important;
     }
 
     .product-card .card-title {
-        font-size: 0.8rem;
-        height: 2.4rem;
-        margin-bottom: 0.3rem;
-        line-height: 1.2;
+        font-size: 0.85rem !important;
+        height: 2.6rem !important;
+        margin-bottom: 0.4rem !important;
+        line-height: 1.3;
     }
 
     .product-card .product-price {
-        font-size: 0.8rem;
-        margin-bottom: 0.4rem;
+        font-size: 0.85rem !important;
+        margin-bottom: 0.5rem !important;
     }
 
-    /* Compact buttons for minimal spacing */
+    /* Well-proportioned buttons */
     .product-card .btn {
-        padding: 0.25rem 0.4rem;
-        font-size: 0.7rem;
+        padding: 0.3rem 0.5rem !important;
+        font-size: 0.75rem !important;
         min-height: auto;
     }
 
-    /* Ensure image containers are compact */
-    .product-card .card-img-top {
-        height: 100px !important;
-        padding: 6px !important;
-    }
-
-    /* Remove any extra spacing in button groups */
+    /* Balanced spacing in button groups */
     .product-card .d-grid {
-        gap: 3px !important;
+        gap: 4px !important;
     }
     
     /* ===== MOBILE EXPANDABLE DETAILS OPTIMIZATION ===== */
@@ -1491,8 +1627,8 @@ footer a.text-white:hover {
 
     /* Full details section - optimized for mobile */
     .product-full-details {
-        margin-top: 8px;
-        padding-top: 8px;
+        margin-top: 8px !important;
+        padding-top: 8px !important;
         border-top: 1px solid #e9ecef;
         animation: slideDown 0.3s ease-out;
     }
@@ -1500,7 +1636,7 @@ footer a.text-white:hover {
     /* View Details button styling for mobile */
     .view-details-btn {
         width: 100%;
-        margin-top: 6px;
+        margin-top: 6px !important;
         padding: 6px 12px !important;
         font-size: 0.75rem !important;
         border: 1px solid #6c757d !important;
@@ -1525,11 +1661,11 @@ footer a.text-white:hover {
     .product-full-details p.small {
         font-size: 0.7rem !important;
         line-height: 1.3;
-        margin-bottom: 6px;
+        margin-bottom: 6px !important;
     }
 
     .product-full-details hr {
-        margin: 6px 0;
+        margin: 6px 0 !important;
         border-color: #e9ecef;
     }
 
@@ -1553,7 +1689,7 @@ footer a.text-white:hover {
 
     /* Ensure card expands properly when details are open */
     .product-details-element[open] {
-        margin-bottom: 8px;
+        margin-bottom: 8px !important;
     }
 
     /* Prevent content jump by setting min-height */
@@ -1563,12 +1699,12 @@ footer a.text-white:hover {
     }
     
     .section-title {
-        font-size: 1.2rem;
-        margin-bottom: 0.8rem;
+        font-size: 1.2rem !important;
+        margin-bottom: 0.8rem !important;
     }
     
     .section-title::after {
-        width: 50px;
+        width: 50px !important;
     }
     
     .product-price {
@@ -1587,23 +1723,47 @@ footer a.text-white:hover {
         font-size: 1rem;
     }
     
-    /* Hot Sales mobile adjustments */
+    /* Hot Sales mobile adjustments with perfect spacing */
     .hot-sales {
-        margin: 20px 0;
+        margin: 15px 0 !important; /* Proper spacing from hero card */
         padding: 15px;
     }
     
     .hot-sales-container {
-        height: 280px;
+        height: 420px;
     }
     
     .hot-sales-item {
         width: 220px;
-        margin-right: 12px;
+        margin-right: 15px;
+    }
+    
+    /* Adjust animation speed for mobile if needed */
+    .hot-sales-row.upper-row {
+        animation-duration: 40s;
+    }
+    
+    .hot-sales-row.lower-row {
+        animation-duration: 40s;
     }
     
     body {
         font-size: 0.85rem;
+    }
+
+    /* ===== UPDATED MOBILE PAYMENT LOGOS ===== */
+    .payment-logos {
+        justify-content: center;
+        margin-top: 10px;
+        gap: 10px;
+    }
+    
+    .payment-logo {
+        height: 25px;
+    }
+
+    .mpesa-logo {
+        height: 28px;
     }
 }
 
@@ -1611,6 +1771,26 @@ footer a.text-white:hover {
 @media (max-width: 575px) {
     .mobile-header {
         padding: 6px 8px;
+        height: 45px;
+    }
+    
+    .mobile-logo-bar {
+        padding: 6px 15px;
+        height: 45px;
+    }
+    
+    .mobile-logo {
+        font-size: 1.4rem;
+    }
+    
+    /* Adjust mobile header position for smaller logo bar */
+    .mobile-header {
+        top: 78px; /* 33px (top-bar) + 45px (logo-bar) */
+    }
+    
+    /* ===== FIXED: PERFECT SPACING FOR EXTRA SMALL DEVICES ===== */
+    main {
+        padding-top: 133px !important; /* Adjusted for smaller header */
     }
     
     .mobile-search {
@@ -1631,52 +1811,70 @@ footer a.text-white:hover {
         font-size: 1.1rem;
     }
     
+    /* ===== ADJUSTED HERO FOR EXTRA SMALL DEVICES ===== */
     .hero-middle {
-        min-height: 200px !important;
+        min-height: 350px !important; /* Still large but adjusted for smaller screens */
+    }
+    
+    .trending-container {
+        min-height: 350px !important;
+        padding: 20px !important;
     }
     
     .dance-animation {
-        max-height: 80px;
+        max-height: 180px !important; /* Slightly smaller but still large */
+        margin: 12px auto !important;
     }
     
     .hero-middle h3 {
-        font-size: 0.9rem;
+        font-size: 1.3rem !important;
+        margin-top: 15px !important;
+        margin-bottom: 8px !important;
     }
     
     .hero-middle p {
-        font-size: 0.7rem;
+        font-size: 0.9rem !important;
+        margin-bottom: 15px !important;
     }
     
     .shop-now-btn {
-        padding: 3px 10px;
-        font-size: 0.7rem;
-        bottom: 8px;
-        left: 8px;
+        padding: 10px 25px !important;
+        font-size: 1rem !important;
+        margin: 12px 0 !important;
     }
     
     .hero-slogan {
-        font-size: 0.65rem;
-        padding: 2px 6px;
-        bottom: 8px;
-        right: 8px;
-        max-width: 60%;
+        font-size: 0.9rem !important;
+        padding: 10px 15px !important;
+        margin: 8px 0 !important;
+    }
+    
+    .today-deal {
+        top: 10px !important;
+        right: 10px !important;
+        padding: 6px 15px !important;
+        font-size: 0.8rem !important;
     }
     
     .product-row {
-        gap: 3px !important;
+        gap: 4px !important;
     }
 
     .product-card .card-body {
-        padding: 6px !important;
+        padding: 8px !important;
     }
 
     .product-card .card-title {
-        font-size: 0.75rem;
-        height: 2.2rem;
+        font-size: 0.8rem !important;
+        height: 2.4rem !important;
     }
 
+    /* ENHANCED: Large extra small mobile product images */
     .product-card .card-img-top {
-        height: 90px !important;
+        height: 180px !important;
+        padding: 8px !important;
+        object-fit: contain !important;
+        width: 100% !important;
     }
     
     .view-details-btn {
@@ -1685,8 +1883,8 @@ footer a.text-white:hover {
     }
 
     .product-full-details {
-        margin-top: 6px;
-        padding-top: 6px;
+        margin-top: 6px !important;
+        padding-top: 6px !important;
     }
 
     .product-full-details p.small {
@@ -1694,21 +1892,17 @@ footer a.text-white:hover {
     }
     
     .section-title {
-        font-size: 1.1rem;
-        padding-bottom: 0.2rem;
-        margin-bottom: 0.6rem;
+        font-size: 1.1rem !important;
+        padding-bottom: 0.2rem !important;
+        margin-bottom: 0.6rem !important;
     }
     
     .section-title::after {
-        width: 40px;
+        width: 40px !important;
     }
     
     .product-card {
         margin-bottom: 0.5rem;
-    }
-    
-    .product-card .card-img-top {
-        height: 100px;
     }
     
     .product-card .card-title {
@@ -1765,11 +1959,12 @@ footer a.text-white:hover {
     }
     
     .hot-sales-container {
-        height: 240px;
+        height: 380px;
     }
     
     .hot-sales-item {
-        width: 200px;
+        width: 180px;
+        margin-right: 10px;
     }
     
     .success-card {
@@ -1792,17 +1987,31 @@ footer a.text-white:hover {
     .mobile-top-bar {
         font-size: 0.7rem;
         padding: 5px 0;
+        height: 30px;
     }
     
     .mobile-top-bar .container {
         gap: 8px;
+    }
+
+    /* Extra small payment logos */
+    .payment-logos {
+        gap: 8px;
+    }
+    
+    .payment-logo {
+        height: 20px;
+    }
+
+    .mpesa-logo {
+        height: 22px;
     }
 }
 
 /* Print adjustments */
 @media print {
     .navbar, .top-bar, .footer, .breadcrumb,
-    .mobile-top-bar, .mobile-header {
+    .mobile-top-bar, .mobile-header, .mobile-logo-bar {
         display: none !important;
     }
     
