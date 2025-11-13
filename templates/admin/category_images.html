@@ -32,7 +32,8 @@
                         <input type="hidden" name="category_id" value="{{ category.id }}">
                         <div class="mb-3">
                             <label class="form-label">Upload Images (Max 8)</label>
-                            <input class="form-control" type="file" name="images" accept="image/*" multiple>
+                            <input class="form-control" type="file" name="images" accept="image/*" multiple required>
+                            <div class="form-text">You can select multiple images at once.</div>
                         </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-upload me-1"></i> Upload Images
@@ -40,29 +41,40 @@
                     </form>
 
                     <!-- Image Gallery -->
-                    {% if category.images %}
-                    <div class="row mt-4">
-                        {% for image in category.images %}
-                        <div class="col-6 col-md-4 mb-3">
-                            <div class="card">
-                                <img src="{{ get_image_url(image.filename) }}" class="card-img-top" alt="Category Image">
-                                <div class="card-body p-2">
-                                    <form method="POST" action="{{ url_for('delete_category_image', image_id=image.id) }}">
-                                        <button type="submit" class="btn btn-danger btn-sm w-100">
+                    {% if category_images[category.id] %}
+                    <div class="mt-4">
+                        <h6>Current Images ({{ category_images[category.id]|length }}/8)</h6>
+                        <div class="row">
+                            {% for image_url in category_images[category.id] %}
+                            <div class="col-6 col-md-4 mb-3">
+                                <div class="card">
+                                    <img src="{{ image_url }}" class="card-img-top" alt="Category Image" style="height: 120px; object-fit: cover;">
+                                    <div class="card-body p-2">
+                                        <!-- Note: This requires a route to get image_id - you'll need to modify your backend -->
+                                        <button type="button" class="btn btn-danger btn-sm w-100" disabled>
                                             <i class="fas fa-trash me-1"></i> Delete
                                         </button>
-                                    </form>
+                                        <small class="text-muted">Delete functionality needs backend update</small>
+                                    </div>
                                 </div>
                             </div>
+                            {% endfor %}
                         </div>
-                        {% endfor %}
                     </div>
                     {% else %}
-                    <div class="bg-light p-4 mt-3 text-center text-muted">
+                    <div class="bg-light p-4 mt-3 text-center text-muted rounded">
+                        <i class="fas fa-images fa-2x mb-2"></i><br>
                         No images uploaded for this category yet.
                     </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No categories found. Please add categories first.
             </div>
         </div>
         {% endfor %}

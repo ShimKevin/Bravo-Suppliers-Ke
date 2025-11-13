@@ -226,11 +226,91 @@ def test_database_connection():
                 app.logger.error("All pg8000 database connection attempts failed")
                 return False
 
+def safe_commit():
+    """Safely commit database changes with proper rollback handling"""
+    try:
+        db.session.commit()
+        return True
+    except Exception as e:
+        app.logger.error(f"Commit failed: {str(e)}")
+        db.session.rollback()  # Reset the session
+        return False
+
+def fix_orphaned_products_immediate():
+    """Immediate fix for orphaned products - use raw SQL to avoid ORM issues"""
+    try:
+        with app.app_context():
+            # Use raw SQL to find and fix orphaned products
+            result = db.session.execute(text('SELECT id FROM product WHERE category_id IS NULL'))
+            orphaned_ids = [row[0] for row in result]
+            
+            if orphaned_ids:
+                app.logger.info(f"Found {len(orphaned_ids)} orphaned products: {orphaned_ids}")
+                
+                # Get a valid category ID
+                valid_category = db.session.execute(text('SELECT id FROM category LIMIT 1')).fetchone()
+                if valid_category:
+                    category_id = valid_category[0]
+                    # Update orphaned products
+                    db.session.execute(
+                        text('UPDATE product SET category_id = :cat_id WHERE category_id IS NULL'),
+                        {'cat_id': category_id}
+                    )
+                    if safe_commit():
+                        app.logger.info(f"Fixed {len(orphaned_ids)} orphaned products by assigning category_id {category_id}")
+                        return True
+                    else:
+                        app.logger.error("Failed to commit orphaned product fixes")
+                        return False
+                else:
+                    app.logger.error("No valid categories found in database")
+                    return False
+            else:
+                app.logger.info("No orphaned products found")
+                return True
+                
+    except Exception as e:
+        app.logger.error(f"Error fixing orphaned products: {str(e)}")
+        db.session.rollback()
+        return False
+
+def get_safe_products():
+    """Safely get products without triggering autoflush issues"""
+    try:
+        with db.session.no_autoflush:
+            return Product.query.filter_by(is_active=True).all()
+    except Exception as e:
+        app.logger.error(f"Error getting products: {str(e)}")
+        # Try alternative approach
+        try:
+            db.session.rollback()
+            return Product.query.filter_by(is_active=True).all()
+        except Exception as e2:
+            app.logger.error(f"Second attempt failed: {str(e2)}")
+            return []
+
+def get_safe_top_categories():
+    """Safely get top categories with error handling"""
+    try:
+        with db.session.no_autoflush:
+            return Category.query.filter_by(parent_id=None).all()
+    except Exception as e:
+        app.logger.error(f"Error getting top categories: {str(e)}")
+        try:
+            db.session.rollback()
+            return Category.query.filter_by(parent_id=None).all()
+        except Exception as e2:
+            app.logger.error(f"Second attempt failed: {str(e2)}")
+            return []
+
 def migrate_database():
     """Add new columns to existing tables without data loss"""
     with app.app_context():
         try:
             inspector = db.inspect(db.engine)
+            
+            # Fix orphaned products first to prevent migration issues
+            fix_orphaned_products_immediate()
             
             # For PostgreSQL, we'll use conditional checks instead of try/except
             columns = inspector.get_columns('hero_middle')
@@ -287,9 +367,11 @@ def migrate_database():
             else:
                 app.logger.info("is_active already exists in Product")
             
-            # Commit all changes
-            db.session.commit()
-            app.logger.info("Database migration completed successfully")
+            # Commit all changes using safe commit
+            if safe_commit():
+                app.logger.info("Database migration completed successfully")
+            else:
+                app.logger.error("Database migration commit failed")
             
         except Exception as e:
             app.logger.error(f"Database migration failed: {str(e)}")
@@ -348,8 +430,10 @@ def create_initial_categories():
                 created = True
     
     if created:
-        db.session.commit()
-        app.logger.info("Created initial categories")
+        if safe_commit():
+            app.logger.info("Created initial categories")
+        else:
+            app.logger.error("Failed to commit initial categories")
     else:
         app.logger.info("All categories already exist")
 
@@ -365,6 +449,9 @@ def initialize_database():
                 continue
                 
             db.create_all()
+            
+            # Fix orphaned products immediately to prevent issues
+            fix_orphaned_products_immediate()
             
             # Run database migrations for schema changes
             migrate_database()
@@ -384,12 +471,16 @@ def initialize_database():
                         is_admin=True
                     )
                     db.session.add(admin)
-                    db.session.commit()
-                    app.logger.info("Admin user created from environment variables")
+                    if safe_commit():
+                        app.logger.info("Admin user created from environment variables")
+                    else:
+                        app.logger.error("Failed to commit admin user creation")
                 elif not admin_user.is_admin:
                     admin_user.is_admin = True
-                    db.session.commit()
-                    app.logger.info("Existing user promoted to admin")
+                    if safe_commit():
+                        app.logger.info("Existing user promoted to admin")
+                    else:
+                        app.logger.error("Failed to commit admin promotion")
                 else:
                     app.logger.info("Admin user already exists")
             else:
@@ -403,6 +494,7 @@ def initialize_database():
             
         except Exception as e:
             app.logger.error(f"Database initialization attempt {attempt + 1} failed: {str(e)}")
+            db.session.rollback()  # Ensure session is clean
             if attempt < max_attempts - 1:
                 app.logger.info(f"Retrying in 3 seconds...")
                 time.sleep(3)
@@ -584,50 +676,70 @@ def get_hierarchical_categories():
 # Context processor to make common data available in all templates
 @app.context_processor
 def inject_common_data():
-    # Get top-level categories (parent_id is None)
-    top_categories = Category.query.filter_by(parent_id=None).all()
-    
-    # For each top category, get its direct children
-    for category in top_categories:
-        category.children = Category.query.filter_by(parent_id=category.id).all()
-    
-    current_year = datetime.now().year
-    cart_count = get_cart_count()
-    
-    # Get hero section data with fallbacks
-    hero_middle = HeroMiddle.query.filter_by(is_active=True).first()
-    # Skip hero middle if missing critical fields
-    if hero_middle and (not hero_middle.image or not hero_middle.title or not hero_middle.description):
-        hero_middle = None
-    
-    hero_banner = HeroBanner.query.filter_by(is_active=True).first()
-    # Skip hero banner if no image
-    if hero_banner and not hero_banner.image:
-        hero_banner = None
-    
-    # Get first image for each category
-    category_hero_images = {}
-    for category in top_categories:
-        image = CategoryImage.query.filter_by(category_id=category.id).first()
-        if image:
-            category_hero_images[category.id] = get_image_url(image.filename)
-    
-    return dict(
-        top_categories=top_categories,
-        current_year=current_year,
-        cart_count=cart_count,
-        hero_middle=hero_middle,
-        hero_banner=hero_banner,
-        category_hero_images=category_hero_images,
-        get_image_url=get_image_url  # Make available in templates
-    )
+    try:
+        # Get top-level categories safely
+        top_categories = get_safe_top_categories()
+        
+        # For each top category, get its direct children
+        for category in top_categories:
+            try:
+                category.children = Category.query.filter_by(parent_id=category.id).all()
+            except Exception as e:
+                app.logger.error(f"Error getting children for category {category.id}: {str(e)}")
+                category.children = []
+        
+        current_year = datetime.now().year
+        cart_count = get_cart_count()
+        
+        # Get hero section data with fallbacks
+        hero_middle = HeroMiddle.query.filter_by(is_active=True).first()
+        # Skip hero middle if missing critical fields
+        if hero_middle and (not hero_middle.image or not hero_middle.title or not hero_middle.description):
+            hero_middle = None
+        
+        hero_banner = HeroBanner.query.filter_by(is_active=True).first()
+        # Skip hero banner if no image
+        if hero_banner and not hero_banner.image:
+            hero_banner = None
+        
+        # Get first image for each category
+        category_hero_images = {}
+        for category in top_categories:
+            try:
+                image = CategoryImage.query.filter_by(category_id=category.id).first()
+                if image:
+                    category_hero_images[category.id] = get_image_url(image.filename)
+            except Exception as e:
+                app.logger.error(f"Error getting category image for {category.id}: {str(e)}")
+        
+        return dict(
+            top_categories=top_categories,
+            current_year=current_year,
+            cart_count=cart_count,
+            hero_middle=hero_middle,
+            hero_banner=hero_banner,
+            category_hero_images=category_hero_images,
+            get_image_url=get_image_url  # Make available in templates
+        )
+    except Exception as e:
+        app.logger.error(f"Error in context processor: {str(e)}")
+        # Return minimal data to avoid complete failure
+        return dict(
+            top_categories=[],
+            current_year=datetime.now().year,
+            cart_count=0,
+            hero_middle=None,
+            hero_banner=None,
+            category_hero_images={},
+            get_image_url=get_image_url
+        )
 
 # Routes
 @app.route('/')
 def home():
     try:
-        # Get top-level categories
-        top_categories = Category.query.filter_by(parent_id=None).all()
+        # Get top-level categories safely
+        top_categories = get_safe_top_categories()
 
         # Get hero middle section
         hero_middle = HeroMiddle.query.filter_by(is_active=True).order_by(HeroMiddle.created_at.desc()).first()
@@ -646,19 +758,24 @@ def home():
         # Prepare category products for the front page sections
         category_products = []
         for category in top_categories:
-            # Get all child category IDs
-            child_ids = [child.id for child in category.children]
-            # Always include the main category ID
-            child_ids.append(category.id)
-            
-            # Fetch products from these categories (only active products)
-            products = Product.query.filter(
-                Product.category_id.in_(child_ids),
-                Product.is_active == True
-            ).order_by(Product.created_at.desc()).limit(8).all()
-            # Attach products to category object
-            category.products = products
-            category_products.append(category)
+            try:
+                # Get all child category IDs
+                child_ids = [child.id for child in category.children]
+                # Always include the main category ID
+                child_ids.append(category.id)
+                
+                # Fetch products from these categories (only active products)
+                products = Product.query.filter(
+                    Product.category_id.in_(child_ids),
+                    Product.is_active == True
+                ).order_by(Product.created_at.desc()).limit(8).all()
+                # Attach products to category object
+                category.products = products
+                category_products.append(category)
+            except Exception as e:
+                app.logger.error(f"Error getting products for category {category.id}: {str(e)}")
+                category.products = []
+                category_products.append(category)
 
         return render_template('index.html', 
                                top_categories=top_categories,
@@ -668,6 +785,7 @@ def home():
                                category_products=category_products)
     except Exception as e:
         app.logger.error(f"Error in home route: {str(e)}")
+        # Use minimal context to avoid further errors
         return render_template('error.html', error="Unable to load homepage"), 500
 
 @app.route('/admin')
@@ -733,7 +851,14 @@ def admin_products():
         description = request.form.get('description')
         price = float(request.form.get('price'))
         discount = float(request.form.get('discount', 0))
-        category_id = int(request.form.get('category_id'))
+        
+        # Get category_id safely with fallback - NEVER assign None
+        category_id = request.form.get('category_id')
+        if not category_id:
+            flash('Please select a category', 'danger')
+            return redirect(url_for('admin_products'))
+        
+        category_id = int(category_id)  # fallback to default category
         
         # Handle file upload
         image = None
@@ -744,18 +869,21 @@ def admin_products():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 image = filename
         
+        # Create product object - category_id is guaranteed to be valid
         product = Product(
             name=name,
             description=description,
             price=price,
             discount=discount,
             image=image,
-            category_id=category_id
+            category_id=category_id  # Never None
         )
         
         db.session.add(product)
-        db.session.commit()
-        flash('Product added successfully!', 'success')
+        if safe_commit():
+            flash('Product added successfully!', 'success')
+        else:
+            flash('Error adding product', 'danger')
         return redirect(url_for('admin_products'))
     
     # GET request handling - show all products (active and inactive)
@@ -776,7 +904,12 @@ def edit_product(product_id):
         product.description = request.form.get('description')
         product.price = float(request.form.get('price'))
         product.discount = float(request.form.get('discount', 0))
-        product.category_id = int(request.form.get('category_id'))
+        
+        # Get category_id safely - NEVER assign None
+        category_id = request.form.get('category_id')
+        if category_id:
+            product.category_id = int(category_id)
+        # If no category_id provided, keep the existing one (never set to None)
         
         # Handle file upload
         if 'image' in request.files:
@@ -798,8 +931,10 @@ def edit_product(product_id):
                     app.logger.error(f"Error deleting image: {e}")
                 product.image = None
         
-        db.session.commit()
-        flash('Product updated successfully!', 'success')
+        if safe_commit():
+            flash('Product updated successfully!', 'success')
+        else:
+            flash('Error updating product', 'danger')
         return redirect(url_for('admin_products'))
     
     categories = get_hierarchical_categories()
@@ -815,8 +950,10 @@ def delete_product(product_id):
         
         # Soft delete instead of hard delete
         product.is_active = False
-        db.session.commit()
-        flash('Product deactivated successfully!', 'success')
+        if safe_commit():
+            flash('Product deactivated successfully!', 'success')
+        else:
+            flash('Error deactivating product', 'danger')
     else:
         flash('Product not found', 'danger')
     return redirect(url_for('admin_products'))
@@ -828,8 +965,10 @@ def reactivate_product(product_id):
     if product:
         # Reactivate product
         product.is_active = True
-        db.session.commit()
-        flash('Product reactivated successfully!', 'success')
+        if safe_commit():
+            flash('Product reactivated successfully!', 'success')
+        else:
+            flash('Error reactivating product', 'danger')
     else:
         flash('Product not found', 'danger')
     return redirect(url_for('admin_products'))
@@ -862,8 +1001,10 @@ def delete_product_permanent(product_id):
                 app.logger.error(f"Error deleting image: {e}")
         
         db.session.delete(product)
-        db.session.commit()
-        flash('Product permanently deleted!', 'success')
+        if safe_commit():
+            flash('Product permanently deleted!', 'success')
+        else:
+            flash('Error deleting product', 'danger')
     
     return redirect(url_for('admin_products'))
 
@@ -874,7 +1015,7 @@ def admin_hero_middle():
     if not hero_middle:
         hero_middle = HeroMiddle(title='', description='', image=None, discount_percentage=0, is_active=True)
         db.session.add(hero_middle)
-        db.session.commit()
+        safe_commit()
     
     if request.method == 'POST':
         # Handle delete request
@@ -890,8 +1031,10 @@ def admin_hero_middle():
                 except Exception as e:
                     app.logger.error(f"Error deleting image: {e}")
                 hero_middle.image = None
-            db.session.commit()
-            flash('Hero section cleared successfully!', 'success')
+            if safe_commit():
+                flash('Hero section cleared successfully!', 'success')
+            else:
+                flash('Error clearing hero section', 'danger')
             return redirect(url_for('admin_hero_middle'))
         
         # Update fields
@@ -913,8 +1056,10 @@ def admin_hero_middle():
                         app.logger.error(f"Error deleting old image: {e}")
                 hero_middle.image = filename
         
-        db.session.commit()
-        flash('Hero section updated successfully!', 'success')
+        if safe_commit():
+            flash('Hero section updated successfully!', 'success')
+        else:
+            flash('Error updating hero section', 'danger')
         return redirect(url_for('admin_hero_middle'))
     
     return render_template('admin/hero_middle.html', hero_middle=hero_middle)
@@ -926,7 +1071,7 @@ def admin_hero_banner():
     if not hero_banner:
         hero_banner = HeroBanner(image=None, is_active=True)
         db.session.add(hero_banner)
-        db.session.commit()
+        safe_commit()
     
     if request.method == 'POST':
         # Handle file upload
@@ -953,8 +1098,10 @@ def admin_hero_banner():
                     app.logger.error(f"Error deleting image: {e}")
                 hero_banner.image = None
         
-        db.session.commit()
-        flash('Banner updated successfully!', 'success')
+        if safe_commit():
+            flash('Banner updated successfully!', 'success')
+        else:
+            flash('Error updating banner', 'danger')
         return redirect(url_for('admin_hero_banner'))
     
     return render_template('admin/hero_banner.html', hero_banner=hero_banner)
@@ -995,11 +1142,13 @@ def admin_category_images():
                     )
                     db.session.add(category_image)
             
-            db.session.commit()
-            flash('Category images uploaded successfully!', 'success')
-            # Update the local dictionary
-            images = CategoryImage.query.filter_by(category_id=category_id).all()
-            category_images[category_id] = [get_image_url(img.filename) for img in images]
+            if safe_commit():
+                flash('Category images uploaded successfully!', 'success')
+                # Update the local dictionary
+                images = CategoryImage.query.filter_by(category_id=category_id).all()
+                category_images[category_id] = [get_image_url(img.filename) for img in images]
+            else:
+                flash('Error uploading category images', 'danger')
         else:
             flash('No files selected', 'danger')
         
@@ -1022,8 +1171,10 @@ def delete_category_image(image_id):
                 app.logger.error(f"Error deleting image: {e}")
         
         db.session.delete(image)
-        db.session.commit()
-        flash('Category image deleted successfully!', 'success')
+        if safe_commit():
+            flash('Category image deleted successfully!', 'success')
+        else:
+            flash('Error deleting category image', 'danger')
     else:
         flash('Image not found', 'warning')
     return redirect(url_for('admin_category_images'))
@@ -1061,8 +1212,10 @@ def admin_hot_sales():
                 )
                 db.session.add(hot_sale)
         
-        db.session.commit()
-        flash('Hot Sales updated successfully!', 'success')
+        if safe_commit():
+            flash('Hot Sales updated successfully!', 'success')
+        else:
+            flash('Error updating hot sales', 'danger')
         return redirect(url_for('admin_hot_sales'))
     
     # Get all products for selection (only active products)
@@ -1136,8 +1289,10 @@ def scrape_products():
                     )
                     db.session.add(product)
                 
-                db.session.commit()
-                flash(f'{len(products)} products scraped and added to {category.name} successfully!', 'success')
+                if safe_commit():
+                    flash(f'{len(products)} products scraped and added to {category.name} successfully!', 'success')
+                else:
+                    flash('Error saving scraped products', 'danger')
             else:
                 flash('No products found on the page. Please check the URL and page structure.', 'warning')
                 
@@ -1167,8 +1322,10 @@ def admin_categories():
             if not existing:
                 category = Category(name=name, parent_id=parent_id)
                 db.session.add(category)
-                db.session.commit()
-                flash('Category added successfully!', 'success')
+                if safe_commit():
+                    flash('Category added successfully!', 'success')
+                else:
+                    flash('Error adding category', 'danger')
             else:
                 flash('Category already exists', 'danger')
         
@@ -1199,8 +1356,10 @@ def delete_category(category_id):
             flash('Cannot delete category with products or subcategories', 'danger')
         else:
             db.session.delete(category)
-            db.session.commit()
-            flash('Category deleted successfully!', 'success')
+            if safe_commit():
+                flash('Category deleted successfully!', 'success')
+            else:
+                flash('Error deleting category', 'danger')
     else:
         flash('Category not found', 'danger')
     return redirect(url_for('admin_categories'))
@@ -1270,7 +1429,10 @@ def add_to_cart(product_id):
         else:
             cart_item = Cart(user_id=current_user.id, product_id=product_id)
             db.session.add(cart_item)
-        db.session.commit()
+        if safe_commit():
+            message = f'{product.name} added to cart!'
+        else:
+            message = 'Error adding to cart'
     else:
         # Add to session cart for guests
         if 'cart' not in session:
@@ -1279,13 +1441,14 @@ def add_to_cart(product_id):
         cart = session['cart']
         cart[str(product_id)] = cart.get(str(product_id), 0) + 1
         session['cart'] = cart
+        message = f'{product.name} added to cart!'
     
     # Return JSON response for AJAX requests
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
             'success': True, 
             'cart_count': get_cart_count(),
-            'message': f'{product.name} added to cart!'
+            'message': message
         })
     
     return redirect(request.referrer or url_for('home'))
@@ -1303,25 +1466,27 @@ def update_cart(item_id):
             
             if quantity > 0:
                 cart_item.quantity = quantity
-                db.session.commit()
-                # 🚨 REMOVED: flash('Cart updated successfully!', 'success')
-                return jsonify({
-                    'success': True,
-                    'subtotal': get_cart_total()[0],
-                    'discounts': get_cart_total()[1],
-                    'total': get_cart_total()[0] + 300
-                })
+                if safe_commit():
+                    return jsonify({
+                        'success': True,
+                        'subtotal': get_cart_total()[0],
+                        'discounts': get_cart_total()[1],
+                        'total': get_cart_total()[0] + 300
+                    })
+                else:
+                    return jsonify({'success': False, 'message': 'Error updating cart'})
             else:
                 db.session.delete(cart_item)
-                db.session.commit()
-                # 🚨 REMOVED: flash('Item removed from cart', 'info')
-                return jsonify({
-                    'success': True,
-                    'removed': True,
-                    'subtotal': get_cart_total()[0],
-                    'discounts': get_cart_total()[1],
-                    'total': get_cart_total()[0] + 300
-                })
+                if safe_commit():
+                    return jsonify({
+                        'success': True,
+                        'removed': True,
+                        'subtotal': get_cart_total()[0],
+                        'discounts': get_cart_total()[1],
+                        'total': get_cart_total()[0] + 300
+                    })
+                else:
+                    return jsonify({'success': False, 'message': 'Error removing item'})
     else:
         # Handle session cart update for guests
         if 'cart' in session:
@@ -1342,7 +1507,6 @@ def update_cart(item_id):
                 else:
                     del cart[str(item_id)]
                 session['cart'] = cart
-                # 🚨 REMOVED: flash('Cart updated successfully!', 'success')
                 return jsonify({
                     'success': True,
                     'removed': quantity <= 0,
@@ -1403,8 +1567,7 @@ def remove_from_cart(item_id):
         cart_item = Cart.query.get(item_id)
         if cart_item and cart_item.user_id == current_user.id:
             db.session.delete(cart_item)
-            db.session.commit()
-            # 🚨 REMOVED: flash('Item removed from cart', 'info')
+            safe_commit()
     else:
         # Handle session cart removal for guests
         if 'cart' in session:
@@ -1412,7 +1575,6 @@ def remove_from_cart(item_id):
             if str(item_id) in cart:
                 del cart[str(item_id)]
                 session['cart'] = cart
-                # 🚨 REMOVED: flash('Item removed from cart', 'info')
     
     return redirect(url_for('view_cart'))
 
@@ -1420,11 +1582,10 @@ def remove_from_cart(item_id):
 def clear_cart():
     if current_user.is_authenticated and not current_user.is_admin:
         Cart.query.filter_by(user_id=current_user.id).delete()
-        db.session.commit()
+        safe_commit()
     else:
         session.pop('cart', None)
     
-    # 🚨 REMOVED: flash('Cart cleared', 'info')
     return redirect(url_for('view_cart'))
 
 @app.route('/checkout')
@@ -1526,20 +1687,22 @@ def place_order():
         # Clear session cart
         session.pop('cart', None)
     
-    db.session.commit()
-    
-    # Get order items for email
-    order_items = OrderItem.query.filter_by(order_id=order.id).all()
-    
-    # Send order email
-    send_order_email(order, order_items)
-    
-    return render_template('order_success.html',
-                           order_id=order.id,
-                           total_amount=total,
-                           delivery_address=address,
-                           phone=phone,
-                           email=email)
+    if safe_commit():
+        # Get order items for email
+        order_items = OrderItem.query.filter_by(order_id=order.id).all()
+        
+        # Send order email
+        send_order_email(order, order_items)
+        
+        return render_template('order_success.html',
+                               order_id=order.id,
+                               total_amount=total,
+                               delivery_address=address,
+                               phone=phone,
+                               email=email)
+    else:
+        flash('Error placing order. Please try again.', 'danger')
+        return redirect(url_for('checkout'))
 
 @app.route('/search')
 def search():
@@ -1726,6 +1889,21 @@ def test_db_connection():
             "driver": "pg8000",
             "hint": "Check your PostgreSQL credentials and ensure pg8000 is installed"
         }), 500
+
+# FIX ORPHANED PRODUCTS ROUTE
+@app.route('/fix-orphaned-products')
+@admin_required
+def fix_orphaned_products_route():
+    """Admin route to manually fix orphaned products"""
+    try:
+        if fix_orphaned_products_immediate():
+            flash('Orphaned products fixed successfully!', 'success')
+        else:
+            flash('No orphaned products found or error occurred', 'warning')
+    except Exception as e:
+        flash(f'Error fixing orphaned products: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin_dashboard'))
 
 # PG8000 PERFORMANCE OPTIMIZATION MIDDLEWARE
 @app.after_request

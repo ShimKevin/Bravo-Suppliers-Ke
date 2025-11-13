@@ -8,10 +8,28 @@
 .pl-2 { padding-left: 40px; }
 .pl-3 { padding-left: 60px; }
 .pl-4 { padding-left: 80px; }
+
+.option-pl-0 { padding-left: 0.5rem; }
+.option-pl-1 { padding-left: 1.5rem; }
+.option-pl-2 { padding-left: 2.5rem; }
+.option-pl-3 { padding-left: 3.5rem; }
+.option-pl-4 { padding-left: 4.5rem; }
 </style>
 
 <div class="container mt-4">
     <h1 class="mb-4">Add New Product</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     
     <div class="card">
         <div class="card-header bg-primary text-white">
@@ -42,26 +60,17 @@
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <div class="category-dropdown-container">
-                            <label for="category" class="form-label">Category</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" id="category-input" 
-                                       placeholder="Select category" readonly
-                                       data-bs-toggle="dropdown" aria-expanded="false">
-                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
-                                        data-bs-toggle="dropdown" aria-expanded="false"></button>
-                                
-                                <div class="category-dropdown" id="category-dropdown">
-                                    {% for id, name, depth in categories %}
-                                        <button type="button" class="category-option text-start pl-{{ depth }}" 
-                                                data-value="{{ id }}">
-                                            {{ name }}
-                                        </button>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <input type="hidden" name="category_id" id="category-id" required>
-                        </div>
+                        <label for="category_id" class="form-label">Category</label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">Select a category</option>
+                            {% for id, name, depth in categories %}
+                                <option value="{{ id }}" class="option-pl-{{ depth }}">
+                                    {% for i in range(depth) %}&nbsp;&nbsp;{% endfor %}{{ name }}
+                                </option>
+                            {% else %}
+                                <option value="">No categories available</option>
+                            {% endfor %}
+                        </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="image" class="form-label">Product Image</label>
@@ -69,53 +78,16 @@
                     </div>
                 </div>
                 
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-plus me-1"></i> Add Product
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i> Add Product
+                    </button>
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Products
+                    </a>
+                </div>
             </form>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const dropdown = document.getElementById('category-dropdown');
-    const categoryInput = document.getElementById('category-input');
-    const categoryIdInput = document.getElementById('category-id');
-    const toggleBtn = document.querySelector('[data-bs-toggle="dropdown"]');
-    
-    // Toggle dropdown visibility
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', function() {
-            dropdown.classList.toggle('show');
-        });
-    }
-    
-    // Handle category selection
-    if (dropdown) {
-        dropdown.querySelectorAll('.category-option').forEach(option => {
-            option.addEventListener('click', function() {
-                categoryInput.value = this.textContent;
-                categoryIdInput.value = this.getAttribute('data-value');
-                dropdown.classList.remove('show');
-            });
-        });
-    }
-    
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(event) {
-        const container = document.querySelector('.category-dropdown-container');
-        if (!container.contains(event.target)) {
-            dropdown.classList.remove('show');
-        }
-    });
-    
-    // Make dropdown scrollable
-    if (dropdown) {
-        dropdown.addEventListener('wheel', function(e) {
-            e.stopPropagation();
-        });
-    }
-});
-</script>
 {% endblock %}

@@ -8,6 +8,18 @@
             <i class="fas fa-arrow-left me-1"></i> Back to Products
         </a>
     </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     
     <div class="card">
         <div class="card-header bg-primary text-white">
@@ -32,13 +44,14 @@
                 
                 <div class="mb-3">
                     <label for="description" class="form-label">Description</label>
-                    <textarea class="form-control" id="description" name="description" rows="3">{{ product.description }}</textarea>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ product.description or '' }}</textarea>
                 </div>
                 
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="category" class="form-label">Category</label>
-                        <select class="form-select" id="category" name="category_id" required>
+                        <label for="category_id" class="form-label">Category</label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">Select a category</option>
                             {% for id, name, depth in categories %}
                                 <option value="{{ id }}" {% if id == product.category_id %}selected{% endif %} class="option-pl-{{ depth }}">
                                     {% for i in range(depth) %}&nbsp;&nbsp;{% endfor %}{{ name }}
@@ -49,29 +62,36 @@
                     <div class="col-md-6 mb-3">
                         <label for="image" class="form-label">Product Image</label>
                         <input class="form-control" type="file" id="image" name="image" accept="image/*">
-                        {% if product.image %}
-                            <div class="form-text">Current: {{ product.image }}</div>
-                        {% endif %}
+                        <div class="form-text">
+                            Leave empty to keep current image. Only upload if you want to change the image.
+                        </div>
                     </div>
                 </div>
                 
                 {% if product.image %}
                 <div class="mb-3">
                     <label class="form-label">Current Image</label>
-                    <img src="{{ url_for('static', filename='uploads/' + product.image) }}" 
-                         alt="{{ product.name }}" class="img-thumbnail" width="150">
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" id="delete_image" name="delete_image">
-                        <label class="form-check-label text-danger" for="delete_image">
-                            Delete current image
-                        </label>
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="{{ get_image_url(product.image) }}" 
+                             alt="{{ product.name }}" class="img-thumbnail" width="150" style="object-fit: cover;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="delete_image" name="delete_image">
+                            <label class="form-check-label text-danger" for="delete_image">
+                                Delete current image
+                            </label>
+                        </div>
                     </div>
                 </div>
                 {% endif %}
                 
-                <button type="submit" class="btn btn-success" onclick="refreshAfterImageUpload()">
-                    <i class="fas fa-save me-1"></i> Save Changes
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save me-1"></i> Save Changes
+                    </button>
+                    <a href="{{ url_for('admin_products') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> Cancel
+                    </a>
+                </div>
             </form>
         </div>
     </div>

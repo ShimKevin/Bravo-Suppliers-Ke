@@ -16,6 +16,18 @@
             <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
         </a>
     </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     
     <!-- Combined Add Product Form -->
     <div class="card mb-4">
@@ -60,7 +72,7 @@
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="image" class="form-label">Product Image</label>
-                        <input class="form-control" type="file" id="image" name="image" accept="image/*">
+                        <input class="form-control" type="file" id="image" name="image" accept="image/*" required>
                     </div>
                 </div>
                 
@@ -96,13 +108,22 @@
                             <tr>
                                 <td>{{ product.id }}</td>
                                 <td>
-                                    <img src="{% if product.image %}{{ url_for('static', filename='uploads/' + product.image) }}{% else %}https://via.placeholder.com/50?text=No+Image{% endif %}" 
-                                         alt="{{ product.name }}" width="50">
+                                    {% if product.image %}
+                                        <img src="{{ get_image_url(product.image) }}" alt="{{ product.name }}" width="50" height="50" style="object-fit: cover;">
+                                    {% else %}
+                                        <img src="{{ url_for('static', filename='images/no-image.png') }}" alt="No Image" width="50" height="50" style="object-fit: cover;">
+                                    {% endif %}
                                 </td>
                                 <td>{{ product.name }}</td>
-                                <td>KSh {{ product.price }}</td>
+                                <td>KSh {{ "%.2f"|format(product.price) }}</td>
                                 <td>{{ product.discount }}%</td>
-                                <td>{{ product.category.name }}</td>
+                                <td>
+                                    {% if product.category %}
+                                        {{ product.category.name }}
+                                    {% else %}
+                                        <span class="text-danger">No Category</span>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if product.is_active %}
                                         <span class="badge bg-success">Active</span>
@@ -111,18 +132,31 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                                    {% if product.is_active %}
-                                        <a href="{{ url_for('delete_product', product_id=product.id) }}" class="btn btn-sm btn-warning">Deactivate</a>
-                                    {% else %}
-                                        <a href="{{ url_for('reactivate_product', product_id=product.id) }}" class="btn btn-sm btn-success">Reactivate</a>
-                                        <a href="{{ url_for('delete_product_permanent', product_id=product.id) }}" class="btn btn-sm btn-danger">Delete Permanent</a>
-                                    {% endif %}
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('edit_product', product_id=product.id) }}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        {% if product.is_active %}
+                                            <a href="{{ url_for('delete_product', product_id=product.id) }}" class="btn btn-sm btn-warning" 
+                                               onclick="return confirm('Are you sure you want to deactivate this product?')">
+                                                <i class="fas fa-eye-slash"></i> Deactivate
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('reactivate_product', product_id=product.id) }}" class="btn btn-sm btn-success"
+                                               onclick="return confirm('Are you sure you want to reactivate this product?')">
+                                                <i class="fas fa-eye"></i> Reactivate
+                                            </a>
+                                            <a href="{{ url_for('delete_product_permanent', product_id=product.id) }}" class="btn btn-sm btn-danger"
+                                               onclick="return confirm('Are you sure you want to permanently delete this product? This action cannot be undone.')">
+                                                <i class="fas fa-trash"></i> Delete
+                                            </a>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                         {% else %}
                             <tr>
-                                <td colspan="8" class="text-center">No products found</td>
+                                <td colspan="8" class="text-center py-4">No products found</td>
                             </tr>
                         {% endfor %}
                     </tbody>
